@@ -1,0 +1,35 @@
+name: Bug report
+description: Something doesn't scan or doesn't work as expected
+labels: [bug]
+body:
+  - type: input
+    id: device
+    attributes:
+      label: Device, OS and browser (with versions)
+      placeholder: iPhone 13, iOS 17.5, Safari
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: kqrcode version and framework
+      placeholder: 0.1.0, Next.js 15
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you scan (printed code, screen, photo), from how far, in what light? What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Code / attributes used
+      render: html
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshot, video or a sample of the code
+      description: Remove anything sensitive first.

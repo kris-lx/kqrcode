@@ -12,9 +12,9 @@
  *   {/if}
  *
  * Or use the tag directly (slot="…" is valid there):
- *   <kpay-qr-scanner theme="alipay" onscan={(e) => pay(e.detail.text)}><button slot="footer">…</button></kpay-qr-scanner>
+ *   <kqr-scanner theme="alipay" onscan={(e) => pay(e.detail.text)}><button slot="footer">…</button></kqr-scanner>
  */
-import { defineScannerElement, TAG_NAME, type KpayQRScannerElement, type ScannerLabels, type ScannerTheme } from './element';
+import { defineScannerElement, TAG_NAME, type KQRScannerElement, type ScannerLabels, type ScannerTheme } from './element';
 import type { ScanError, ScanResult } from './scanner';
 
 export interface QRScannerActionOptions {
@@ -49,7 +49,7 @@ const FLAGS: [keyof QRScannerActionOptions, string][] = [
   ['noTorch', 'no-torch'], ['noBeep', 'no-beep'], ['noVibrate', 'no-vibrate'],
 ];
 
-function applyAttrs(el: KpayQRScannerElement, o: QRScannerActionOptions) {
+function applyAttrs(el: KQRScannerElement, o: QRScannerActionOptions) {
   for (const [k, attr] of FLAGS) o[k] ? el.setAttribute(attr, '') : el.removeAttribute(attr);
   for (const [k, attr] of [['facing', 'facing'], ['locale', 'locale'], ['maxZoom', 'max-zoom'], ['superResolution', 'super-resolution'], ['theme', 'theme'], ['heading', 'heading'], ['success', 'success'], ['torch', 'torch'], ['zoomControl', 'zoom-control']] as const) {
     const v = o[k];
@@ -62,7 +62,7 @@ function applyAttrs(el: KpayQRScannerElement, o: QRScannerActionOptions) {
 export function qrScanner(node: HTMLElement, options: QRScannerActionOptions = {}) {
   defineScannerElement();
   let opts = options;
-  const el = document.createElement(TAG_NAME) as KpayQRScannerElement;
+  const el = document.createElement(TAG_NAME) as KQRScannerElement;
   applyAttrs(el, opts);
   const on = (type: string, fn: (e: Event) => void) => el.addEventListener(type, fn);
   on('scan', (e) => opts.onScan?.((e as CustomEvent<ScanResult>).detail));

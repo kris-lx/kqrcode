@@ -39,7 +39,7 @@ Other look options:
 Set them on the element or on any ancestor:
 
 ```css
-kpay-qr-scanner {
+kqr-scanner {
   --kqr-accent: #e60012;          /* line / corners */
   --kqr-success: #00b578;         /* check mark */
   --kqr-scan-duration: 1.8s;
@@ -59,9 +59,9 @@ The full list is exported as `THEME_VARS`.
 Parts: `stage` `video` `candidates` `effect` `scanline` `frame` `success` `focus-ring` `top` `title` `close` `bottom` `hint` `torch` `zoom` `actions` `gallery` `error`.
 
 ```css
-kpay-qr-scanner::part(hint)    { font-size: 16px; background: #0006; padding: 6px 14px; border-radius: 20px; }
-kpay-qr-scanner::part(scanline){ filter: drop-shadow(0 0 8px #fff); }
-kpay-qr-scanner::part(close)   { display: none; }
+kqr-scanner::part(hint)    { font-size: 16px; background: #0006; padding: 6px 14px; border-radius: 20px; }
+kqr-scanner::part(scanline){ filter: drop-shadow(0 0 8px #fff); }
+kqr-scanner::part(close)   { display: none; }
 ```
 
 ## 4. Slots: your own buttons, tabs, hint and error
@@ -78,10 +78,10 @@ kpay-qr-scanner::part(close)   { display: none; }
 | `error` | error text | branded permission screen |
 
 ```html
-<kpay-qr-scanner theme="alipay" locale="zh">
+<kqr-scanner theme="alipay" locale="zh">
   <button slot="actions-left" onclick="openMyCode()">我的二维码</button>
   <nav slot="footer"><b>扫码</b><span>识物</span><span>AR</span></nav>
-</kpay-qr-scanner>
+</kqr-scanner>
 ```
 
 Your slotted buttons can call the element's methods: `el.pickImage()`, `el.toggleTorch()`, `el.close()`, `el.resume()`.

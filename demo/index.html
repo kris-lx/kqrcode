@@ -4,10 +4,10 @@
 <button id="open" style="margin:40vh auto;display:block;font-size:20px;padding:14px 28px">Scan</button>
 <pre id="out"></pre>
 <!-- serve over https:// or http://localhost  (getUserMedia requirement) -->
-<script src="../dist/kpay-qr.global.js"></script>
+<script src="../dist/kqrcode.global.js"></script>
 <script>
   document.getElementById('open').onclick = () => {
-    const el = document.createElement('kpay-qr-scanner');
+    const el = document.createElement('kqr-scanner');
     el.setAttribute('locale', 'lo');
     el.addEventListener('scan', (e) => { out.textContent = e.detail.text; el.remove(); });
     el.addEventListener('close', () => el.remove());

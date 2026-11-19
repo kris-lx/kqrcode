@@ -1,5 +1,6 @@
 // Browser benchmark (real Chrome): WeChat SR model via JS kernel vs ONNX Runtime Web (WASM, WebGPU),
 // plus an end-to-end check that the scanner worker loads ORT for superResolution:'webgpu'.
+import { ROOT, TMP, chromeOpts } from '../scripts/env.mts';
 import { chromium } from 'playwright-core';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, writeFileSync } from 'node:fs';
@@ -39,13 +40,13 @@ window.__out = out;
 </script>`);
 
 const fakeImg = render('https://pay.example.com/kpay?order=SR-WEBGPU', { module: 6, angle: 20, W: 1280, H: 720, cx: 640, cy: 360 });
-const W = 1280, H = 720, y4m = 'C:/Users/Kailo/AppData/Local/Temp/kpay-fake2.y4m';
+const W = 1280, H = 720, y4m = TMP + 'fake2.y4m';
 const parts = [Buffer.from(`YUV4MPEG2 W${W} H${H} F30:1 Ip A1:1 C420jpeg\n`)];
 for (let f = 0; f < 3; f++) { const Y = Buffer.alloc(W*H); for (let i=0;i<W*H;i++) Y[i]=fakeImg.data[i*4]; parts.push(Buffer.from('FRAME\n'), Y, Buffer.alloc(W*H/2, 128)); }
 writeFileSync(y4m, Buffer.concat(parts));
 
 const browser = await chromium.launch({
-  executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  ...chromeOpts(),
   args: ['--enable-unsafe-webgpu', '--enable-features=WebGPU', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-video-capture=${y4m}`],
 });
 const page = await browser.newPage();

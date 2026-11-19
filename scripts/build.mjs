@@ -44,6 +44,14 @@ for (const [name, entry] of Object.entries(entries)) {
   const plugins = ['react', 'vue', 'svelte'].includes(name) ? [shareIndex] : [];
   await build({ ...common, banner, plugins, entryPoints: [entry], format: 'cjs', outfile: p(`dist/${name}.cjs`) });
 }
-// 3) drop-in <script> build (CDN / plain HTML): window.KpayQR
-await build({ ...common, entryPoints: [p('src/index.ts')], format: 'iife', globalName: 'KpayQR', outfile: p('dist/kpay-qr.global.js') });
+// CLI (npx kqrcode …) – Node, no dependencies
+{
+  const version = JSON.parse(readFileSync(p('package.json'), 'utf8')).version;
+  await build({
+    entryPoints: [p('src/cli.ts')], bundle: true, minify: false, platform: 'node', target: 'node18', format: 'esm',
+    banner: { js: '#!/usr/bin/env node' }, define: { __VERSION__: JSON.stringify(version) }, outfile: p('dist/cli.js'),
+  });
+}
+// 3) drop-in <script> build (CDN / plain HTML): window.KQRCode
+await build({ ...common, entryPoints: [p('src/index.ts')], format: 'iife', globalName: 'KQRCode', outfile: p('dist/kqrcode.global.js') });
 console.log('built');

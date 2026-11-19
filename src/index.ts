@@ -1,6 +1,6 @@
 export { QRScanner, ScanError } from './scanner';
 export type { ScanResult, ScannerOptions, ScannerEvents, ScanErrorCode } from './scanner';
-export { KpayQRScannerElement, defineScannerElement, LABELS, TAG_NAME, THEME_VARS } from './element';
+export { KQRScannerElement, defineScannerElement, LABELS, TAG_NAME, THEME_VARS } from './element';
 export type { ScannerLabels, ScannerTheme } from './element';
 export { scanQR } from './scan-qr';
 export type { ScanQROptions } from './scan-qr';

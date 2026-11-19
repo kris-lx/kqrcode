@@ -92,7 +92,7 @@ nodes.append(helper.make_node('Add', ['nearest_crop', 'up_rec'], ['output']))
 g = helper.make_graph(nodes, 'wechat_sr',
                       [helper.make_tensor_value_info('data', TensorProto.FLOAT, [1, 1, 'H', 'W'])],
                       [helper.make_tensor_value_info('output', TensorProto.FLOAT, [1, 1, 'H2', 'W2'])], inits)
-m = helper.make_model(g, opset_imports=[helper.make_opsetid('', 13)], producer_name='kpay-qr-scanner')
+m = helper.make_model(g, opset_imports=[helper.make_opsetid('', 13)], producer_name='kqr-scanner')
 m.ir_version = 8
 onnx.checker.check_model(m)
 os.makedirs(os.path.join(ROOT, 'models'), exist_ok=True)

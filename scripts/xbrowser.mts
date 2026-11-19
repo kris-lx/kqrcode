@@ -1,12 +1,13 @@
 // Cross-browser + stress test: Chromium (Chrome), Firefox, WebKit (Safari engine).
 // Camera is simulated with canvas.captureStream() drawing moving/rotating QR codes, so the full
 // pipeline (getUserMedia → video → grab → worker/WASM → result) runs identically in every engine.
+import { ROOT, TMP, chromeOpts } from './env.mts';
 import { chromium, firefox, webkit, type Browser } from 'playwright-core';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import QRCode from 'qrcode';
 
-const root = 'd:/kailo/codes/kpay/';
+const root = ROOT;
 const CODES = [
   'https://pay.example.com/kpay?o=1',
   'https://pay.example.com/kpay?o=2&amt=50000',
@@ -84,7 +85,7 @@ async function run(name: string, b: Browser): Promise<R> {
     out.unsupportedFlow = await ev<string>(`
       try { await Promise.race([scanQR({ locale: 'lo' }), new Promise((_, j) => setTimeout(() => j('timeout'), 8000))]); return 'UNEXPECTED resolve'; }
       catch (e) {
-        const el = document.querySelector('kpay-qr-scanner');
+        const el = document.querySelector('kqr-scanner');
         return 'rejected ' + (e.code || e) + ', element shows: ' + (el && el.getAttribute('error')) + ' / "' + (el && el.shadowRoot.querySelector('.et').textContent) + '"';
       }`).catch((e) => 'FAIL ' + e);
     out.workersAlive = await page.evaluate(() => (window as any).__alive());
@@ -128,7 +129,7 @@ async function run(name: string, b: Browser): Promise<R> {
   out.scanQR = await ev<string>(`
     __scene({ idx: 3, show: true, size: 300, x: 640, y: 360, angle: 0.5, spin: 0 });
     const r = await Promise.race([scanQR({ theme: 'alipay', locale: 'lo' }), new Promise((_, j) => setTimeout(() => j('timeout'), 15000))]);
-    return (r.text === ${JSON.stringify(CODES[3])} ? 'ok' : 'WRONG') + ', elements left=' + document.querySelectorAll('kpay-qr-scanner').length;`).catch((e) => 'FAIL ' + e);
+    return (r.text === ${JSON.stringify(CODES[3])} ? 'ok' : 'WRONG') + ', elements left=' + document.querySelectorAll('kqr-scanner').length;`).catch((e) => 'FAIL ' + e);
 
   // 5) stress: continuous scanning for 20 s while codes move, spin, change and disappear
   out.stress = await ev<string>(`
@@ -166,7 +167,7 @@ async function run(name: string, b: Browser): Promise<R> {
 
 const results: R[] = [];
 const targets: [string, () => Promise<Browser>][] = [
-  ['chrome', () => chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', args: ['--enable-precise-memory-info'] })],
+  ['chrome', () => chromium.launch({ ...chromeOpts(), args: ['--enable-precise-memory-info'] })],
   ['firefox', () => firefox.launch()],
   ['webkit', () => webkit.launch()],
 ];

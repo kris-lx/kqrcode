@@ -1,10 +1,11 @@
 /**
  * Benchmark: accuracy (decode rate) + latency for
- *   jsQR · ZXing-C++ WASM · kpay engine · kpay engine + WeChat SR · WeChat (OpenCV native C++)
+ *   jsQR · ZXing-C++ WASM · kqrcode engine · kqrcode engine + WeChat SR · WeChat (OpenCV native C++)
  * on one deterministic synthetic dataset, plus an SR micro-benchmark (JS kernel vs ONNX Runtime).
  *
  *   npx tsx bench/run.mts            (needs the Python venv for the WeChat column, see BENCHMARK.md)
  */
+import { ROOT, TMP, chromeOpts } from '../scripts/env.mts';
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import os from 'node:os';
@@ -18,7 +19,7 @@ import { jsSuperRes, createOnnxSuperRes } from '../src/sr-providers.ts';
 import { superResolve } from '../src/sr.ts';
 
 const OUT = new URL('./out/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
-const PY = process.env.KPAY_PY ?? 'C:/Users/Kailo/AppData/Local/Temp/kpay-venv/Scripts/python.exe';
+const PY = process.env.KQR_PY ?? 'python';
 mkdirSync(OUT + 'data', { recursive: true });
 
 type Row = { ok: boolean; false: boolean; ms: number };
@@ -40,15 +41,15 @@ const engines: Engine[] = [
     },
   },
   {
-    name: 'kpay (ZXing + locator + ROI)',
+    name: 'kqrcode (ZXing + locator + ROI)',
     run: async (s, rgba) => (await analyze({ data: rgba, width: s.width, height: s.height }, { sr: false }, zx)).text ?? null,
   },
   {
-    name: 'kpay + WeChat SR (JS)',
+    name: 'kqrcode + WeChat SR (JS)',
     run: async (s, rgba) => (await analyze({ data: rgba, width: s.width, height: s.height }, {}, zx, jsSuperRes)).text ?? null,
   },
   {
-    name: 'kpay + WeChat SR (ONNX Runtime)',
+    name: 'kqrcode + WeChat SR (ONNX Runtime)',
     run: async (s, rgba) => (await analyze({ data: rgba, width: s.width, height: s.height }, {}, zx, onnxSR)).text ?? null,
   },
 ];
@@ -65,11 +66,11 @@ writeFileSync(OUT + 'manifest.json', JSON.stringify(manifest));
 console.log(samples.length, 'samples');
 
 // ---------------- JS engines ----------------
-const QUICK = process.argv.includes('--kpay-only'); // re-run only kpay rows, reuse the rest
+const QUICK = process.argv.includes('--kqrcode-only'); // re-run only kqrcode rows, reuse the rest
 const prev = QUICK && existsSync(OUT + 'results.json') ? JSON.parse(readFileSync(OUT + 'results.json', 'utf8')) : null;
 const results: Record<string, Record<string, Row>> = {};
 for (const e of engines) {
-  if (QUICK && !e.name.startsWith('kpay') && prev?.results[e.name]) { results[e.name] = prev.results[e.name]; continue; }
+  if (QUICK && !e.name.startsWith('kqrcode') && prev?.results[e.name]) { results[e.name] = prev.results[e.name]; continue; }
   const rows: Record<string, Row> = {};
   // warm-up
   await e.run(samples[0], toRGBA(samples[0]));
@@ -144,5 +145,5 @@ md += `\n## Super-resolution model (WeChat CNN, 5,301 params) — ms per ROI\n\n
 for (const r of srBench) md += `| ${r.side}×${r.side} | ${r.js.toFixed(1)} | ${r.onnx.toFixed(1)} |\n`;
 if (wechatNote) md += `\n> ${wechatNote}\n`;
 writeFileSync(OUT + 'results.json', JSON.stringify({ manifest, results, srBench }, null, 1));
-writeFileSync(new URL('../BENCHMARK.generated.md', import.meta.url), md);
+writeFileSync(new URL('./results.md', import.meta.url), md);
 console.log(md);

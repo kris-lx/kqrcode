@@ -1,6 +1,6 @@
 import { createElement, forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import { defineScannerElement, TAG_NAME, type KpayQRScannerElement, type ScannerLabels, type ScannerTheme } from './element';
+import { defineScannerElement, TAG_NAME, type KQRScannerElement, type ScannerLabels, type ScannerTheme } from './element';
 import type { ScanError, ScanResult } from './scanner';
 
 export interface QRScannerProps {
@@ -42,9 +42,9 @@ export interface QRScannerProps {
  * <QRScanner onScan={r => …} />  – full-screen by default; unmount it to close.
  * Works with React 17/18/19, Next.js (use in a client component), Remix, Vite, CRA.
  */
-export const QRScanner = forwardRef<KpayQRScannerElement | null, QRScannerProps>(function QRScanner(props, ref) {
-  const el = useRef<KpayQRScannerElement | null>(null);
-  useImperativeHandle(ref, () => el.current as KpayQRScannerElement);
+export const QRScanner = forwardRef<KQRScannerElement | null, QRScannerProps>(function QRScanner(props, ref) {
+  const el = useRef<KQRScannerElement | null>(null);
+  useImperativeHandle(ref, () => el.current as KQRScannerElement);
   const cb = useRef(props);
   cb.current = props;
 

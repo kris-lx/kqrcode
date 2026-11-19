@@ -3,7 +3,7 @@
  * Opens the full-screen scanner, resolves with the first code, cleans up after itself.
  * Rejects with ScanError (camera problems) or DOMException 'AbortError' (user closed / signal aborted).
  */
-import { defineScannerElement, TAG_NAME, type KpayQRScannerElement, type ScannerLabels, type ScannerTheme } from './element';
+import { defineScannerElement, TAG_NAME, type KQRScannerElement, type ScannerLabels, type ScannerTheme } from './element';
 import type { ScanResult } from './scanner';
 
 export interface ScanQROptions {
@@ -39,7 +39,7 @@ export interface ScanQROptions {
 export function scanQR(o: ScanQROptions = {}): Promise<ScanResult> {
   defineScannerElement();
   return new Promise((resolve, reject) => {
-    const el = document.createElement(TAG_NAME) as KpayQRScannerElement;
+    const el = document.createElement(TAG_NAME) as KQRScannerElement;
     const set = (k: string, v: string | number | boolean | undefined) => {
       if (v === undefined || v === false) return;
       el.setAttribute(k, v === true ? '' : String(v));

@@ -1,5 +1,5 @@
 /**
- * <kpay-qr-scanner> – full-screen scanner web component.
+ * <kqr-scanner> – full-screen scanner web component.
  * Works in any framework (React, Vue, Angular, Svelte, Solid, Preact, Lit, Qwik, plain HTML…).
  *
  * Customisation layers (pick the lightest that does the job):
@@ -212,7 +212,7 @@ input[type=file]{display:none}
 
 const Base: typeof HTMLElement = (typeof HTMLElement === 'undefined' ? class {} : HTMLElement) as typeof HTMLElement;
 
-export class KpayQRScannerElement extends Base {
+export class KQRScannerElement extends Base {
   static observedAttributes = ['locale', 'heading', 'torch', 'zoom-control'];
 
   /** Override any label (merged over the current locale). */
@@ -611,11 +611,11 @@ export class KpayQRScannerElement extends Base {
   }
 }
 
-export const TAG_NAME = 'kpay-qr-scanner';
+export const TAG_NAME = 'kqr-scanner';
 
 /** Register the custom element (idempotent, SSR-safe). */
 export function defineScannerElement(tag: string = TAG_NAME): void {
   if (typeof customElements !== 'undefined' && !customElements.get(tag)) {
-    customElements.define(tag, KpayQRScannerElement as unknown as CustomElementConstructor);
+    customElements.define(tag, KQRScannerElement as unknown as CustomElementConstructor);
   }
 }

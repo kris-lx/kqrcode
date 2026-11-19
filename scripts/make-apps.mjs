@@ -70,7 +70,7 @@ w('nuxt', 'package.json', {
   dependencies: { nuxt: '^3.17.0', vue: '^3.5.0', 'kqrcode': TGZ },
 });
 w('nuxt', 'nuxt.config.ts', `export default defineNuxtConfig({ compatibilityDate: '2025-01-01', devtools: { enabled: false },
-  vue: { compilerOptions: { isCustomElement: (t: string) => t === 'kpay-qr-scanner' } } });`);
+  vue: { compilerOptions: { isCustomElement: (t: string) => t === 'kqr-scanner' } } });`);
 w('nuxt', 'app.vue', `<script setup lang="ts">
 import { ref } from 'vue';
 import { QRScanner } from 'kqrcode/vue';
@@ -138,9 +138,9 @@ import type { ScanResult } from 'kqrcode';
   template: \`
     <p id="result">{{ result }}</p>
     @if (!result) {
-      <kpay-qr-scanner theme="wechat" locale="lo" (scan)="onScan($any($event).detail)">
+      <kqr-scanner theme="wechat" locale="lo" (scan)="onScan($any($event).detail)">
         <button slot="actions-left">${SLOT_LABEL}</button>
-      </kpay-qr-scanner>
+      </kqr-scanner>
     }\`,
 })
 class App {

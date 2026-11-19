@@ -29,7 +29,7 @@ test('React SSR renders the custom element tag', async () => {
   const { renderToString } = await import('react-dom/server');
   const { QRScanner } = await import('../dist/react.js');
   const html = renderToString(React.createElement(QRScanner, { locale: 'lo', superResolution: 'webgpu', continuous: true }));
-  assert.match(html, /<kpay-qr-scanner[^>]*locale="lo"/);
+  assert.match(html, /<kqr-scanner[^>]*locale="lo"/);
   assert.match(html, /super-resolution="webgpu"/);
   assert.match(html, /continuous=""/);
 });
@@ -39,6 +39,6 @@ test('Vue SSR renders the custom element tag', async () => {
   const { renderToString } = await import('vue/server-renderer');
   const { QRScanner } = await import('../dist/vue.js');
   const html = await renderToString(createSSRApp({ render: () => h(QRScanner, { locale: 'lo', inline: true }) }));
-  assert.match(html, /<kpay-qr-scanner[^>]*locale="lo"/);
+  assert.match(html, /<kqr-scanner[^>]*locale="lo"/);
   assert.match(html, /\sinline(=""|[\s>])/); // Vue renders boolean attrs as bare `inline`
 });

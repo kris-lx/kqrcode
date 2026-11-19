@@ -1,6 +1,8 @@
 # Using kqrcode in every framework
 
-The scanner is a standard **custom element** (`<kpay-qr-scanner>`), so it works anywhere the DOM works.
+> **Fastest way:** run `npx kqrcode init` in your project. It detects the framework, installs the package and creates a starter component based on the examples below.
+
+The scanner is a standard **custom element** (`<kqr-scanner>`), so it works anywhere the DOM works.
 Thin wrappers exist for React, Vue and Svelte. Importing any entry is SSR-safe (it registers the element only in the browser).
 
 Common props / attributes:
@@ -73,8 +75,8 @@ const open = ref(false);
 </template>
 ```
 
-If you use the raw tag `<kpay-qr-scanner>` in Vue templates instead of the wrapper, tell Vue it is a custom element:
-`vue({ template: { compilerOptions: { isCustomElement: (t) => t === 'kpay-qr-scanner' } } })`.
+If you use the raw tag `<kqr-scanner>` in Vue templates instead of the wrapper, tell Vue it is a custom element:
+`vue({ template: { compilerOptions: { isCustomElement: (t) => t === 'kqr-scanner' } } })`.
 
 ## Nuxt 3
 
@@ -119,9 +121,9 @@ Or use the custom element tag directly, where `slot` is valid and events are `on
 
 ```svelte
 <script>import 'kqrcode';</script>
-<kpay-qr-scanner theme="alipay" locale="lo" onscan={(e) => pay(e.detail.text)}>
+<kqr-scanner theme="alipay" locale="lo" onscan={(e) => pay(e.detail.text)}>
   <button slot="actions-left">My QR</button>
-</kpay-qr-scanner>
+</kqr-scanner>
 ```
 
 ## Angular (17+ standalone)
@@ -129,7 +131,7 @@ Or use the custom element tag directly, where `slot` is valid and events are `on
 ```ts
 // scan.component.ts
 import { Component, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
-import 'kqrcode'; // registers <kpay-qr-scanner>
+import 'kqrcode'; // registers <kqr-scanner>
 import type { ScanResult } from 'kqrcode';
 
 @Component({
@@ -138,8 +140,8 @@ import type { ScanResult } from 'kqrcode';
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   template: `
     @if (open) {
-      <kpay-qr-scanner locale="lo" super-resolution="webgpu"
-        (scan)="onScan($any($event).detail)" (close)="open = false"></kpay-qr-scanner>
+      <kqr-scanner locale="lo" super-resolution="webgpu"
+        (scan)="onScan($any($event).detail)" (close)="open = false"></kqr-scanner>
     }
     <button (click)="open = true">Scan</button>`,
 })
@@ -154,10 +156,10 @@ With Angular SSR the import is safe on the server; the element only activates in
 ## Plain HTML / CDN
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/kqrcode/dist/kpay-qr.global.js"></script>
-<kpay-qr-scanner locale="lo"></kpay-qr-scanner>
+<script src="https://cdn.jsdelivr.net/npm/kqrcode/dist/kqrcode.global.js"></script>
+<kqr-scanner locale="lo"></kqr-scanner>
 <script>
-  document.querySelector('kpay-qr-scanner').addEventListener('scan', (e) => alert(e.detail.text));
+  document.querySelector('kqr-scanner').addEventListener('scan', (e) => alert(e.detail.text));
 </script>
 ```
 

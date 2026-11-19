@@ -1,6 +1,6 @@
 import { defineComponent, h, onMounted, ref } from 'vue';
 import type { PropType } from 'vue';
-import { defineScannerElement, TAG_NAME, type KpayQRScannerElement, type ScannerLabels, type ScannerTheme } from './element';
+import { defineScannerElement, TAG_NAME, type KQRScannerElement, type ScannerLabels, type ScannerTheme } from './element';
 import type { ScanResult } from './scanner';
 
 /**
@@ -36,7 +36,7 @@ export const QRScanner = defineComponent({
     ready: () => true,
   },
   setup(props, { emit, expose, slots }) {
-    const el = ref<KpayQRScannerElement | null>(null);
+    const el = ref<KQRScannerElement | null>(null);
     defineScannerElement();
     onMounted(() => { if (el.value && props.labels) el.value.labels = props.labels; });
     expose({ el });
