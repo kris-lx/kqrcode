@@ -55,7 +55,7 @@ Every engine sees **the same pixels**: hard synthetic camera frames with perspec
 > Methodology, the super-resolution timings on WebGPU and how to reproduce everything: **[docs/BENCHMARK.md](docs/BENCHMARK.md)**.
 
 > [!TIP]
-> **Using an AI coding assistant (Cursor, Copilot, Claude, Windsurf)?** Point it to [`llms.txt`](./llms.txt) for a compact reference of the whole kqrcode API.
+> Prefer a single-page summary of the whole API? See [`llms.txt`](./llms.txt).
 
 ---
 
