@@ -1,0 +1,9 @@
+node_modules
+dist
+src/worker-source.generated.ts
+models/_dl
+models/sr_reference.npz
+bench/out
+bench/browser.html
+bench/e2e-sr.html
+*.tgz

@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>kpay-qr-scanner demo</title>
+<button id="open" style="margin:40vh auto;display:block;font-size:20px;padding:14px 28px">Scan</button>
+<pre id="out"></pre>
+<!-- serve over https:// or http://localhost  (getUserMedia requirement) -->
+<script src="../dist/kpay-qr.global.js"></script>
+<script>
+  document.getElementById('open').onclick = () => {
+    const el = document.createElement('kpay-qr-scanner');
+    el.setAttribute('locale', 'lo');
+    el.addEventListener('scan', (e) => { out.textContent = e.detail.text; el.remove(); });
+    el.addEventListener('close', () => el.remove());
+    document.body.append(el);
+  };
+</script>

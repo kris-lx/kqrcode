@@ -1,0 +1,130 @@
+"""
+Convert WeChat's super-resolution CNN (Caffe, from WeChatCV/opencv_3rdparty, Apache-2.0)
+into:
+  models/wechat_sr.onnx              – standard ONNX (for onnxruntime-web / WebGPU)
+  src/sr-weights.generated.ts        – compact float32 weights for the built-in JS kernel
+  models/sr_reference.npz            – OpenCV-DNN reference outputs used by the tests
+
+Run with a Python that has opencv-contrib-python, numpy and onnx:
+  python scripts/convert-sr.py
+"""
+import base64, json, os, sys
+import numpy as np
+import cv2
+import onnx
+from onnx import helper, TensorProto, numpy_helper
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DL = os.path.join(ROOT, 'models', '_dl')
+net = cv2.dnn.readNetFromCaffe(os.path.join(DL, 'sr.prototxt'), os.path.join(DL, 'sr.caffemodel'))
+
+def blobs(name):
+    lid = net.getLayerId(name)
+    out = []
+    i = 0
+    while True:
+        try:
+            b = net.getParam(lid, i)
+        except cv2.error:
+            break
+        if b is None or b.size == 0:
+            break
+        out.append(np.array(b, dtype=np.float32))
+        i += 1
+    return out
+
+SLOPE = 0.05000000074505806
+# (name, kind, input, output, group, pad, stride, kernel)
+convs = [
+    ('conv0', 'conv', 'data', 'conv0', 1, 1, 1),
+    ('db1/reduce', 'conv', 'conv0', 'db1_reduce', 1, 0, 1),
+    ('db1/3x3', 'conv', 'db1_reduce', 'db1_3x3', 8, 1, 1),
+    ('db1/1x1', 'conv', 'db1_3x3', 'db1_1x1', 1, 0, 1),
+    ('db2/reduce', 'conv', 'db1_concat', 'db2_reduce', 1, 0, 1),
+    ('db2/3x3', 'conv', 'db2_reduce', 'db2_3x3', 8, 1, 1),
+    ('db2/1x1', 'conv', 'db2_3x3', 'db2_1x1', 1, 0, 1),
+    ('upsample/reduce', 'conv', 'db2_concat', 'up_reduce', 1, 0, 1),
+    ('upsample/deconv', 'deconv', 'up_reduce', 'up_deconv', 32, 1, 2),
+    ('upsample/rec', 'conv', 'up_deconv', 'up_rec', 1, 0, 1),
+]
+
+weights = {}
+for name, *_ in convs + [('nearest',)]:
+    b = blobs(name)
+    weights[name] = b
+    print(name, [x.shape for x in b])
+
+# ---------------- ONNX ----------------
+nodes, inits = [], []
+def add_init(n, arr):
+    inits.append(numpy_helper.from_array(arr.astype(np.float32), n))
+
+for name, kind, inp, out, group, pad, stride in convs:
+    w = weights[name][0]
+    k = w.shape[-1]
+    wn, bn = name.replace('/', '_') + '_W', name.replace('/', '_') + '_B'
+    add_init(wn, w)
+    ins = [inp, wn]
+    if len(weights[name]) > 1:
+        add_init(bn, weights[name][1].reshape(-1)); ins.append(bn)
+    raw = out + '_raw' if name != 'upsample/rec' else out
+    op = 'Conv' if kind == 'conv' else 'ConvTranspose'
+    nodes.append(helper.make_node(op, ins, [raw], name=name, group=group, kernel_shape=[k, k],
+                                  pads=[pad] * 4, strides=[stride, stride]))
+    if name != 'upsample/rec':
+        nodes.append(helper.make_node('LeakyRelu', [raw], [out], alpha=SLOPE))
+    if name == 'db1/1x1':
+        nodes.append(helper.make_node('Concat', ['conv0', 'db1_1x1'], ['db1_concat'], axis=1))
+    if name == 'db2/1x1':
+        nodes.append(helper.make_node('Concat', ['db1_concat', 'db2_1x1'], ['db2_concat'], axis=1))
+
+# nearest 2x (deconv k2 s2 with fixed weights) cropped to the 2H-1 grid, then residual add
+add_init('nearest_W', weights['nearest'][0])
+nodes.append(helper.make_node('ConvTranspose', ['data', 'nearest_W'], ['nearest'], kernel_shape=[2, 2], strides=[2, 2]))
+nodes.append(helper.make_node('Shape', ['up_rec'], ['rec_shape']))
+add_init_i = lambda n, a: inits.append(numpy_helper.from_array(np.array(a, dtype=np.int64), n))
+add_init_i('sl_start', [2]); add_init_i('sl_end', [4])
+nodes.append(helper.make_node('Slice', ['rec_shape', 'sl_start', 'sl_end'], ['rec_hw']))
+add_init_i('zero2', [0, 0]); add_init_i('axes23', [2, 3])
+nodes.append(helper.make_node('Slice', ['nearest', 'zero2', 'rec_hw', 'axes23'], ['nearest_crop']))
+nodes.append(helper.make_node('Add', ['nearest_crop', 'up_rec'], ['output']))
+
+g = helper.make_graph(nodes, 'wechat_sr',
+                      [helper.make_tensor_value_info('data', TensorProto.FLOAT, [1, 1, 'H', 'W'])],
+                      [helper.make_tensor_value_info('output', TensorProto.FLOAT, [1, 1, 'H2', 'W2'])], inits)
+m = helper.make_model(g, opset_imports=[helper.make_opsetid('', 13)], producer_name='kpay-qr-scanner')
+m.ir_version = 8
+onnx.checker.check_model(m)
+os.makedirs(os.path.join(ROOT, 'models'), exist_ok=True)
+onnx.save(m, os.path.join(ROOT, 'models', 'wechat_sr.onnx'))
+
+# ---------------- weights for the JS kernel ----------------
+layout, chunks, off = {}, [], 0
+for name, *_ in convs + [('nearest',)]:
+    for i, arr in enumerate(weights[name]):
+        flat = arr.astype(np.float32).reshape(-1)
+        layout[f'{name}:{i}'] = [off, flat.size, list(arr.shape)]
+        chunks.append(flat); off += flat.size
+allw = np.concatenate(chunks).astype('<f4').tobytes()
+with open(os.path.join(ROOT, 'src', 'sr-weights.generated.ts'), 'w', encoding='utf8') as f:
+    f.write('// AUTO-GENERATED by scripts/convert-sr.py from WeChat sr.caffemodel (Apache-2.0) - do not edit\n')
+    f.write(f'export const SR_LAYOUT: Record<string, [number, number, number[]]> = {json.dumps(layout)};\n')
+    f.write(f'export const SR_WEIGHTS_B64 = "{base64.b64encode(allw).decode()}";\n')
+with open(os.path.join(ROOT, 'src', 'sr-model.generated.ts'), 'w', encoding='utf8') as f:
+    f.write('// AUTO-GENERATED by scripts/convert-sr.py - the ONNX model, base64\n')
+    f.write(f'export const SR_ONNX_B64 = "{base64.b64encode(m.SerializeToString()).decode()}";\n')
+
+# ---------------- reference outputs ----------------
+rng = np.random.default_rng(1)
+refs = {}
+for i, (h, w) in enumerate([(17, 23), (40, 40)]):
+    x = rng.random((h, w), dtype=np.float32)
+    net.setInput(x.reshape(1, 1, h, w))
+    y = net.forward()
+    refs[f'in{i}'] = x
+    refs[f'out{i}'] = y[0, 0]
+    print('reference', (h, w), '->', y.shape)
+np.savez(os.path.join(ROOT, 'models', 'sr_reference.npz'), **refs)
+with open(os.path.join(ROOT, 'models', 'sr_reference.json'), 'w') as f:
+    json.dump({k: {'shape': list(v.shape), 'data': v.reshape(-1).tolist()} for k, v in refs.items()}, f)
+print('ok, weights floats:', off)

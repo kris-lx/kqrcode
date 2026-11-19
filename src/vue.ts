@@ -1,0 +1,64 @@
+import { defineComponent, h, onMounted, ref } from 'vue';
+import type { PropType } from 'vue';
+import { defineScannerElement, TAG_NAME, type KpayQRScannerElement, type ScannerLabels, type ScannerTheme } from './element';
+import type { ScanResult } from './scanner';
+
+/**
+ * <QRScanner @scan="r => …" /> for Vue 3 / Nuxt (wrap in <ClientOnly>).
+ * Emits: scan, error, close, ready.
+ */
+export const QRScanner = defineComponent({
+  name: 'QRScanner',
+  props: {
+    facing: { type: String as PropType<'environment' | 'user'>, default: 'environment' },
+    continuous: Boolean,
+    inline: Boolean,
+    noAutoZoom: Boolean,
+    noGallery: Boolean,
+    noTorch: Boolean,
+    noBeep: Boolean,
+    noVibrate: Boolean,
+    maxZoom: Number,
+    superResolution: String as PropType<'js' | 'webgpu' | 'off'>,
+    locale: String,
+    labels: Object as PropType<Partial<ScannerLabels>>,
+    theme: String as PropType<ScannerTheme>,
+    heading: String,
+    success: String as PropType<'dot' | 'box' | 'none'>,
+    torch: String as PropType<'auto' | 'always' | 'never'>,
+    zoomControl: String as PropType<'slider' | 'none'>,
+    noClose: Boolean,
+  },
+  emits: {
+    scan: (_r: ScanResult) => true,
+    error: (_e: unknown) => true,
+    close: () => true,
+    ready: () => true,
+  },
+  setup(props, { emit, expose, slots }) {
+    const el = ref<KpayQRScannerElement | null>(null);
+    defineScannerElement();
+    onMounted(() => { if (el.value && props.labels) el.value.labels = props.labels; });
+    expose({ el });
+    return () => {
+      const a: Record<string, unknown> = {
+        ref: el, facing: props.facing, locale: props.locale, 'max-zoom': props.maxZoom, 'super-resolution': props.superResolution,
+        theme: props.theme, heading: props.heading, success: props.success, torch: props.torch, 'zoom-control': props.zoomControl,
+        onScan: (e: CustomEvent<ScanResult>) => emit('scan', e.detail),
+        onError: (e: CustomEvent) => emit('error', e.detail),
+        onClose: () => emit('close'),
+        onReady: () => emit('ready'),
+      };
+      if (props.continuous) a.continuous = '';
+      if (props.inline) a.inline = '';
+      if (props.noAutoZoom) a['no-auto-zoom'] = '';
+      if (props.noGallery) a['no-gallery'] = '';
+      if (props.noTorch) a['no-torch'] = '';
+      if (props.noBeep) a['no-beep'] = '';
+      if (props.noVibrate) a['no-vibrate'] = '';
+      if (props.noClose) a['no-close'] = '';
+      // <QRScanner><button slot="actions-left">…</button></QRScanner> → native slots
+      return h(TAG_NAME, a, slots.default?.());
+    };
+  },
+});

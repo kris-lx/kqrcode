@@ -1,0 +1,119 @@
+{
+  "name": "kpay-qr-scanner",
+  "version": "0.1.0",
+  "description": "Full-screen QR scanner (Alipay/WeChat style): auto-zoom, any angle, far distance, framework-agnostic web component + React/Vue wrappers.",
+  "author": "kris",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kris-lx/kqrcode.git"
+  },
+  "homepage": "https://github.com/kris-lx/kqrcode#readme",
+  "bugs": {
+    "url": "https://github.com/kris-lx/kqrcode/issues"
+  },
+  "type": "module",
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/index.cjs",
+    "./dist/kpay-qr.global.js"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js",
+      "require": "./dist/react.cjs"
+    },
+    "./vue": {
+      "types": "./dist/vue.d.ts",
+      "import": "./dist/vue.js",
+      "require": "./dist/vue.cjs"
+    },
+    "./svelte": {
+      "types": "./dist/svelte.d.ts",
+      "import": "./dist/svelte.js",
+      "require": "./dist/svelte.cjs"
+    },
+    "./sr": {
+      "types": "./dist/sr-entry.d.ts",
+      "import": "./dist/sr.js",
+      "require": "./dist/sr.cjs"
+    },
+    "./models/wechat_sr.onnx": "./models/wechat_sr.onnx"
+  },
+  "files": [
+    "dist",
+    "models/wechat_sr.onnx",
+    "README.md",
+    "BENCHMARK.md",
+    "THIRD_PARTY_NOTICES.md",
+    "LICENSE",
+    "docs",
+    "NOTICE",
+    "licenses"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs && tsc -p tsconfig.build.json",
+    "test": "tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": ">=17",
+    "vue": ">=3"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "jsqr": "^1.4.0",
+    "zxing-wasm": "^3.1.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.7",
+    "esbuild": "^0.25.0",
+    "onnxruntime-node": "^1.20.1",
+    "onnxruntime-web": "^1.20.1",
+    "playwright-core": "^1.65.1",
+    "qrcode": "^1.5.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vue": "^3.5.0"
+  },
+  "license": "MIT",
+  "keywords": [
+    "qr",
+    "qrcode",
+    "scanner",
+    "barcode",
+    "camera",
+    "wechat",
+    "alipay",
+    "zxing",
+    "webgpu",
+    "web-component",
+    "react",
+    "vue",
+    "svelte",
+    "angular"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

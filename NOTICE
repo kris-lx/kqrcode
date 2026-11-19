@@ -1,0 +1,27 @@
+kqrcode / kpay-qr-scanner
+Copyright (c) 2026 kris
+
+This product includes software and models developed by third parties:
+
+1. WeChat QRCode super-resolution model ("sr.caffemodel" / "sr.prototxt")
+   Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+   Licensed under the Apache License, Version 2.0 – see licenses/WECHAT_QRCODE-Apache-2.0.txt
+   Source: https://github.com/WeChatCV/opencv_3rdparty/tree/wechat_qrcode
+   MODIFICATIONS: the original Caffe weights were converted, without retraining or
+   changing any weight values, by scripts/convert-sr.py into
+     - models/wechat_sr.onnx (ONNX format), and
+     - src/sr-weights.generated.ts (raw float32 array for a JavaScript re-implementation
+       of the same network in src/sr.ts).
+
+2. ZXing-C++ (compiled to WebAssembly and bundled in the decoding worker)
+   Copyright (c) the ZXing-C++ authors. Licensed under the Apache License, Version 2.0
+   – see licenses/zxing-cpp-Apache-2.0.txt. Source: https://github.com/zxing-cpp/zxing-cpp
+
+3. zxing-wasm (JavaScript bindings for ZXing-C++), Copyright (c) 2023 Ze-Zheng Wu,
+   MIT License – see licenses/zxing-wasm-MIT.txt. Source: https://github.com/Sec-ant/zxing-wasm
+
+4. jsQR (fallback decoder), Copyright (c) the jsQR authors. Apache License, Version 2.0
+   – see licenses/jsQR-Apache-2.0.txt. Source: https://github.com/cozmo/jsQR
+
+ONNX Runtime Web (MIT, Microsoft) is NOT bundled; it is only loaded at runtime from a URL
+you configure when superResolution: 'webgpu' is used.
