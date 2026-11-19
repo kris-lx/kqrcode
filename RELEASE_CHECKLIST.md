@@ -1,4 +1,4 @@
-# Release readiness – kpay-qr-scanner 0.1.0
+# Release readiness – kqrcode 0.1.0
 
 Audit date: 2026-11-19. Re-run everything with the commands below before each release.
 
@@ -7,7 +7,7 @@ Audit date: 2026-11-19. Re-run everything with the commands below before each re
 | area | result | how |
 |---|---|---|
 | Unit tests | 29/29: engine (rotation, blur, far, inverted), SR kernel = OpenCV (< 1e-4), ONNX = OpenCV, auto-zoom, SSR imports/render | `npm test` |
-| Package | tarball 2.3 MB (was 9.5 MB); ESM is code-split, ~14 KB gzip on import, engine lazy-loaded; CJS wrappers share `index.cjs`; LICENSE included; npm name `kpay-qr-scanner` free | `npm pack --dry-run` |
+| Package | tarball 2.3 MB (was 9.5 MB); ESM is code-split, ~14 KB gzip on import, engine lazy-loaded; CJS wrappers share `index.cjs`; LICENSE included; npm name `kqrcode` free | `npm pack --dry-run` |
 | React + Vite (prod build) | builds with `tsc` strict; scans; slots work; no console errors | `scripts/make-apps.mjs` + `scripts/apps-e2e.mts` |
 | Next.js 15 App Router (prod, SSR) | SSR HTML ok; scans; slots; no errors | same |
 | Nuxt 3 (prod, SSR) | SSR HTML ok; scans; slots; no errors | same |

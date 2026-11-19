@@ -26,7 +26,7 @@ rmSync(p('dist'), { recursive: true, force: true });
 mkdirSync(p('dist'), { recursive: true });
 const common = { bundle: true, minify: true, sourcemap: true, sourcesContent: false, target: 'es2020', platform: 'browser', external: ['react', 'vue'] };
 // CJS wrappers re-use index.cjs instead of each bundling the 1.7 MB engine again
-const shareIndex = { name: 'share-index', setup(b) { b.onResolve({ filter: /^\.\/(element|scanner)$/ }, () => ({ path: 'kpay-qr-scanner', external: true })); } };
+const shareIndex = { name: 'share-index', setup(b) { b.onResolve({ filter: /^\.\/(element|scanner)$/ }, () => ({ path: 'kqrcode', external: true })); } };
 const entries = { index: p('src/index.ts'), react: p('src/react.ts'), vue: p('src/vue.ts'), svelte: p('src/svelte.ts'), sr: p('src/sr-entry.ts') };
 // ESM: code-split → the engine (worker + WASM, ~1.6 MB) is its own chunk, fetched only when a scanner starts
 await build({

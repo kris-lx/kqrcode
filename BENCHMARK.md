@@ -1,4 +1,4 @@
-# Benchmark: kpay-qr-scanner vs jsQR, ZXing and the real WeChat engine
+# Benchmark: kqrcode vs jsQR, ZXing and the real WeChat engine
 
 Machine: Intel Core Ultra 5 125U laptop (Intel Xe-LPG GPU), Windows 11, Node 26, Chrome 157. Run on 2026-11-19.
 Reproduce: `npx tsx bench/run.mts` (accuracy + CPU latency) and `npx tsx bench/browser.mts` (Chrome / WebGPU).

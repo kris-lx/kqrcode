@@ -1,4 +1,4 @@
-# Using kpay-qr-scanner in every framework
+# Using kqrcode in every framework
 
 The scanner is a standard **custom element** (`<kpay-qr-scanner>`), so it works anywhere the DOM works.
 Thin wrappers exist for React, Vue and Svelte. Importing any entry is SSR-safe (it registers the element only in the browser).
@@ -23,7 +23,7 @@ Events: `scan` (`detail: ScanResult`), `error` (`detail: ScanError`), `close`, `
 
 ```tsx
 import { useState } from 'react';
-import { QRScanner } from 'kpay-qr-scanner/react';
+import { QRScanner } from 'kqrcode/react';
 
 export function PayButton() {
   const [open, setOpen] = useState(false);
@@ -51,7 +51,7 @@ The React entry ships with `'use client'`, so you can render it from a server co
 ```tsx
 // app/scan/page.tsx
 import dynamic from 'next/dynamic';
-const QRScanner = dynamic(() => import('kpay-qr-scanner/react').then((m) => m.QRScanner), { ssr: false });
+const QRScanner = dynamic(() => import('kqrcode/react').then((m) => m.QRScanner), { ssr: false });
 
 export default function Page() {
   return <QRScanner locale="lo" onScan={(r) => console.log(r.text)} />;
@@ -63,7 +63,7 @@ export default function Page() {
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue';
-import { QRScanner } from 'kpay-qr-scanner/vue';
+import { QRScanner } from 'kqrcode/vue';
 const open = ref(false);
 </script>
 
@@ -81,7 +81,7 @@ If you use the raw tag `<kpay-qr-scanner>` in Vue templates instead of the wrapp
 ```vue
 <!-- pages/scan.vue -->
 <script setup lang="ts">
-import { QRScanner } from 'kpay-qr-scanner/vue';
+import { QRScanner } from 'kqrcode/vue';
 </script>
 
 <template>
@@ -95,7 +95,7 @@ import { QRScanner } from 'kpay-qr-scanner/vue';
 
 ```svelte
 <script lang="ts">
-  import { qrScanner } from 'kpay-qr-scanner/svelte';
+  import { qrScanner } from 'kqrcode/svelte';
   let open = $state(false);
 </script>
 
@@ -118,7 +118,7 @@ Slots: Svelte 5 rejects `slot="…"` inside a plain `<div>`, so inside the actio
 Or use the custom element tag directly, where `slot` is valid and events are `on<name>` attributes:
 
 ```svelte
-<script>import 'kpay-qr-scanner';</script>
+<script>import 'kqrcode';</script>
 <kpay-qr-scanner theme="alipay" locale="lo" onscan={(e) => pay(e.detail.text)}>
   <button slot="actions-left">My QR</button>
 </kpay-qr-scanner>
@@ -129,8 +129,8 @@ Or use the custom element tag directly, where `slot` is valid and events are `on
 ```ts
 // scan.component.ts
 import { Component, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
-import 'kpay-qr-scanner'; // registers <kpay-qr-scanner>
-import type { ScanResult } from 'kpay-qr-scanner';
+import 'kqrcode'; // registers <kpay-qr-scanner>
+import type { ScanResult } from 'kqrcode';
 
 @Component({
   selector: 'app-scan',
@@ -154,7 +154,7 @@ With Angular SSR the import is safe on the server; the element only activates in
 ## Plain HTML / CDN
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/kpay-qr-scanner/dist/kpay-qr.global.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/kqrcode/dist/kpay-qr.global.js"></script>
 <kpay-qr-scanner locale="lo"></kpay-qr-scanner>
 <script>
   document.querySelector('kpay-qr-scanner').addEventListener('scan', (e) => alert(e.detail.text));
@@ -164,7 +164,7 @@ With Angular SSR the import is safe on the server; the element only activates in
 ## Headless (bring your own UI)
 
 ```ts
-import { QRScanner } from 'kpay-qr-scanner';
+import { QRScanner } from 'kqrcode';
 const scanner = new QRScanner({ video: document.querySelector('video')!, superResolution: 'webgpu' });
 scanner.on('result', (r) => console.log(r.text));
 scanner.on('hint', ({ hint }) => drawBox(hint)); // where a (still unreadable) code is

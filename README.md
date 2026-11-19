@@ -1,6 +1,6 @@
 # kqrcode
 
-npm package: `kpay-qr-scanner`
+npm package: `kqrcode`
 
 Full-screen QR scanner in the style of Alipay / WeChat. Framework-agnostic web component with React and Vue wrappers.
 
@@ -19,7 +19,7 @@ Full-screen QR scanner in the style of Alipay / WeChat. Framework-agnostic web c
 ## Use
 
 ```ts
-import { scanQR } from 'kpay-qr-scanner';
+import { scanQR } from 'kqrcode';
 const { text } = await scanQR({ theme: 'wechat', locale: 'lo' });   // that's it
 ```
 

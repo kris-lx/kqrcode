@@ -1,5 +1,5 @@
 {
-  "name": "kpay-qr-scanner",
+  "name": "kqrcode",
   "version": "0.1.0",
   "description": "Full-screen QR scanner (Alipay/WeChat style): auto-zoom, any angle, far distance, framework-agnostic web component + React/Vue wrappers.",
   "author": "kris",

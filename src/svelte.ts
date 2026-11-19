@@ -2,7 +2,7 @@
  * Svelte / SvelteKit action – no Svelte dependency, SSR-safe (actions only run in the browser).
  *
  *   <script>
- *     import { qrScanner } from 'kpay-qr-scanner/svelte';
+ *     import { qrScanner } from 'kqrcode/svelte';
  *     let open = false;
  *   </script>
  *   {#if open}
