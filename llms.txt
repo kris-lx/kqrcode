@@ -12,7 +12,7 @@ Requires HTTPS (or localhost). CSP needs: `worker-src blob:` and `script-src 'wa
 - `kqrcode/vue`: <QRScanner>
 - `kqrcode/svelte`: qrScanner action
 - `kqrcode/sr`: superResolve, createOnnxSuperRes, srModelBytes (the model on its own)
-- CDN: https://cdn.jsdelivr.net/npm/kqrcode/dist/kqrcode.global.js (global `KQRCode`)
+- CDN: https://cdn.jsdelivr.net/npm/kqrcode/dist/kqrcode.global.js (global `KQRCode`, 17 kB; loads kqrcode.engine.js from the same directory on first use)
 
 ## scanQR(options?): Promise<ScanResult>
 
@@ -40,7 +40,7 @@ Nuxt: render client-only (<ClientOnly> or *.client.vue). Next.js: the wrapper al
 
 new QRScanner({ video: HTMLVideoElement, facingMode?, deviceId?, autoZoom? = true, maxZoom? = 8, continuous? = false, maxFrameSide? = 1920, hiRes? = true, superResolution?: 'js'|'webgpu'|false, onnxRuntimeUrl? })
 Methods: start(), stop(), pause(), resume(), switchCamera(), setZoom(z, byUser = true), setTorch(on): Promise<boolean>, focusAt(x, y), scanImage(Blob|ImageBitmap): Promise<ScanResult|null>, on(event, fn): unsubscribe.
-Static: QRScanner.preload(), QRScanner.isSupported().
+Static: QRScanner.preload() (download + compile the engine), QRScanner.dispose() (free the shared worker now), QRScanner.engineIdleTimeout (ms, default 30000), QRScanner.isSupported().
 Getters: zoom, zoomMin, zoomMax, canZoom, canTorch, isDigitalZoom, superResolutionBackend.
 Events: result (ScanResult), error (ScanError), hint ({ hint: {cx,cy,size,module,full}|null, decoded, videoWidth, videoHeight }), zoom, dark (boolean).
 
@@ -52,6 +52,6 @@ ScanError extends Error { code: 'insecure-context'|'unsupported'|'permission-den
 ## Notes
 
 - Treat ScanResult.text as untrusted input. Validate it, and never inject it as HTML.
-- Call QRScanner.preload() early so the ~640 kB engine is cached before the first scan.
+- Call QRScanner.preload() early so the ~460 kB engine is downloaded and compiled before the first scan.
 - iOS Safari has no camera zoom API, so kqrcode uses digital zoom on a 4K stream.
 - CLI: `npx kqrcode init [--framework X] [--pm X] [--theme X] [--locale X] [--out path] [--no-install] [--force] [--dry-run]`, `npx kqrcode doctor`.

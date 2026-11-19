@@ -4,7 +4,6 @@ export { KQRScannerElement, defineScannerElement, LABELS, TAG_NAME, THEME_VARS }
 export type { ScannerLabels, ScannerTheme } from './element';
 export { scanQR } from './scan-qr';
 export type { ScanQROptions } from './scan-qr';
-export { analyze as decodeFrame } from './engine';
 export type { QRHint, Point } from './engine';
 export { AutoZoom } from './autozoom';
 

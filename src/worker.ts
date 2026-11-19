@@ -1,7 +1,6 @@
 /// <reference lib="webworker" />
 import { analyze, type AnalyzeOptions, type Decoder, type SuperRes } from './engine';
 import { createZXingDecoder } from './decoder-zxing';
-import { jsqrDecoder } from './decoder-jsqr';
 import { createOnnxSuperRes, jsSuperRes, type OrtLike } from './sr-providers';
 
 export type SRMode = 'js' | 'webgpu' | 'off';
@@ -15,8 +14,11 @@ const post = (m: unknown) => (self as unknown as Worker).postMessage(m);
 let canvas: OffscreenCanvas | null = null;
 let ctx: OffscreenCanvasRenderingContext2D | null = null;
 
-// WASM first; if it cannot start (CSP without wasm-unsafe-eval, old engine) fall back to jsQR
-const decoderP: Promise<Decoder> = createZXingDecoder().catch(() => jsqrDecoder);
+// If WASM cannot start (CSP without 'wasm-unsafe-eval', very old engine) the main thread falls back
+// to jsQR – jsQR is not bundled here, which keeps the engine ~130 kB smaller.
+const decoderP: Promise<Decoder | null> = createZXingDecoder().catch(() => null);
+// tell the host when WASM is compiled (QRScanner.preload() waits for this)
+decoderP.then((d) => post({ type: 'ready', wasm: !!d }));
 let srP: Promise<SuperRes | null> = Promise.resolve(jsSuperRes);
 let srName = 'js';
 
@@ -58,8 +60,9 @@ self.onmessage = async (e: MessageEvent<Req | Config>) => {
       height = r.height;
     }
     const [dec, sr] = await Promise.all([decoderP, srP]);
+    if (!dec) { post({ id: r.id, error: 'no-wasm' }); return; }
     const result = await analyze({ data, width, height }, r.opts, dec, sr);
-    post({ id: r.id, result, decoder: dec.slow ? 'jsqr' : 'zxing', sr: srName });
+    post({ id: r.id, result, sr: srName });
   } catch (err) {
     post({ id: r.id, error: String(err) });
   }

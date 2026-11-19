@@ -113,7 +113,7 @@ await s.start();
 | what loads | when | size (gzip) |
 |---|---|---|
 | UI and scanner logic | on import | ~14 KB |
-| decoding engine (ZXing WASM, detectors, SR) | first `start()` or `QRScanner.preload()` | ~640 KB, then cached |
+| decoding engine (ZXing WASM, detectors, SR) | first `start()` or `QRScanner.preload()` | ~460 KB, then cached; one warm worker is shared by all scanners |
 | jsQR fallback | only if blob workers are blocked by CSP | ~47 KB |
 | ONNX Runtime Web | only with `superResolution: 'webgpu'` | from CDN or your own host |
 

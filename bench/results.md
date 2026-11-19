@@ -12,7 +12,7 @@ Dataset: 144 synthetic 1280×720 camera frames (perspective ±12 %, any rotation
 | ZXing-C++ (WASM) | 4% | 38% | 63% | 67% | 96% | 100% | **61%** |
 | kqrcode (ZXing + locator + ROI) | 8% | 42% | 63% | 67% | 96% | 100% | **63%** |
 | kqrcode + WeChat SR (JS) | 13% | 42% | 63% | 67% | 96% | 100% | **63%** |
-| kqrcode + WeChat SR (ONNX Runtime) | 17% | 42% | 63% | 67% | 96% | 100% | **64%** |
+| kqrcode + WeChat SR (ONNX Runtime) | 17% | 46% | 63% | 67% | 96% | 100% | **65%** |
 | WeChat (OpenCV C++, 1 thr) | 29% | 42% | 50% | 63% | 88% | 100% | **62%** |
 | WeChat (OpenCV C++, 14 thr) | 29% | 42% | 50% | 63% | 88% | 100% | **62%** |
 
@@ -24,7 +24,7 @@ Dataset: 144 synthetic 1280×720 camera frames (perspective ±12 %, any rotation
 | ZXing-C++ (WASM) | 85% | 67% | 31% | 63% | 60% |
 | kqrcode (ZXing + locator + ROI) | 88% | 69% | 31% | 64% | 61% |
 | kqrcode + WeChat SR (JS) | 88% | 71% | 31% | 65% | 61% |
-| kqrcode + WeChat SR (ONNX Runtime) | 88% | 73% | 31% | 67% | 61% |
+| kqrcode + WeChat SR (ONNX Runtime) | 88% | 75% | 31% | 68% | 61% |
 | WeChat (OpenCV C++, 1 thr) | 85% | 73% | 27% | 71% | 53% |
 | WeChat (OpenCV C++, 14 thr) | 85% | 73% | 27% | 71% | 53% |
 
@@ -32,19 +32,20 @@ Dataset: 144 synthetic 1280×720 camera frames (perspective ±12 %, any rotation
 
 | engine | p50 | p95 | mean | p50 on hits | empty frame p50 | false positives |
 |---|---|---|---|---|---|---|
-| jsQR | 33.7 | 48.3 | 34.4 | 33.9 | 98.4 | 0 |
-| ZXing-C++ (WASM) | 7.6 | 12.4 | 8.1 | 7.5 | 4.9 | 0 |
-| kqrcode (ZXing + locator + ROI) | 17.2 | 38.2 | 21.0 | 15.5 | 37.0 | 0 |
-| kqrcode + WeChat SR (JS) | 14.3 | 167.9 | 34.1 | 11.2 | 25.8 | 0 |
-| kqrcode + WeChat SR (ONNX Runtime) | 15.4 | 58.7 | 23.9 | 13.5 | 23.2 | 0 |
-| WeChat (OpenCV C++, 1 thr) | 13.9 | 96.4 | 32.8 | 11.0 | 292.5 | 0 |
-| WeChat (OpenCV C++, 14 thr) | 11.7 | 91.3 | 29.9 | 10.7 | 303.0 | 0 |
+| jsQR | 34.0 | 50.1 | 35.5 | 33.2 | 116.3 | 0 |
+| ZXing-C++ (WASM) | 10.6 | 12.4 | 9.9 | 10.6 | 8.6 | 0 |
+| kqrcode (ZXing + locator + ROI) | 13.5 | 27.0 | 14.9 | 12.1 | 20.3 | 0 |
+| kqrcode + WeChat SR (JS) | 13.1 | 97.9 | 22.6 | 9.6 | 17.6 | 0 |
+| kqrcode + WeChat SR (ONNX Runtime) | 14.4 | 50.6 | 20.7 | 13.2 | 18.8 | 0 |
+| WeChat (OpenCV C++, 1 thr) | 13.4 | 106.7 | 33.8 | 11.3 | 271.1 | 0 |
+| WeChat (OpenCV C++, 14 thr) | 13.5 | 99.1 | 33.2 | 12.3 | 282.1 | 0 |
 
 ## Super-resolution model (WeChat CNN, 5,301 params) — ms per ROI
 
 | ROI | built-in JS kernel | ONNX Runtime (Node, CPU) |
 |---|---|---|
-| 64×64 | 41.5 | 2.3 |
-| 128×128 | 158.0 | 15.4 |
-| 192×192 | 416.2 | 44.2 |
-| 240×240 | 782.9 | 36.7 |
+| 64×64 | 65.1 | 2.3 |
+| 96×96 | 115.7 | 10.2 |
+| 128×128 | 245.7 | 9.6 |
+| 160×160 | 305.5 | 16.6 |
+| 240×240 | 733.4 | 32.3 |

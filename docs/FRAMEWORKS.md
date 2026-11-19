@@ -48,7 +48,7 @@ export function PayButton() {
 ## Next.js (App Router)
 
 The React entry ships with `'use client'`, so you can render it from a server component file, or lazy-load it so the
-~1.6 MB worker is only downloaded on the scan page:
+~460 kB engine is only downloaded on the scan page:
 
 ```tsx
 // app/scan/page.tsx

@@ -1,5 +1,6 @@
 import type { AnalyzeOptions, AnalyzeResult, Point, QRHint } from './engine';
 import { AutoZoom } from './autozoom';
+import { engineHost, type Frame } from './engine-host';
 
 export type ScanErrorCode =
   | 'insecure-context'
@@ -70,7 +71,6 @@ interface NativeDetector {
 }
 
 interface Crop { x: number; y: number; w: number; h: number }
-type Frame = { bitmap: ImageBitmap } | { pixels: ArrayBuffer; width: number; height: number };
 type Grabbed = Frame & { src: ImageBitmapSource };
 
 const nextFrame = (v: HTMLVideoElement): Promise<void> =>
@@ -83,11 +83,6 @@ const nextFrame = (v: HTMLVideoElement): Promise<void> =>
       setTimeout(fin, 100); // paused / background tabs
     } else requestAnimationFrame(() => res());
   });
-
-// The engine (ZXing WASM + SR weights, ~1.6 MB) is a separate chunk: it is only downloaded when a
-// scanner starts – or earlier if you call QRScanner.preload(), e.g. on hover of your "Scan" button.
-let workerSourceP: Promise<string> | null = null;
-const loadWorkerSource = () => (workerSourceP ??= import('./worker-source.generated').then((m) => m.default));
 
 const asFrame = (g: Grabbed): Frame =>
   'bitmap' in g ? { bitmap: g.bitmap } : { pixels: g.pixels, width: g.width, height: g.height };
@@ -103,13 +98,11 @@ export class QRScanner {
   private paused = false;
   private loopToken = 0;
 
-  private worker: Worker | null = null;
-  private pending = new Map<number, (r: AnalyzeResult | null) => void>();
-  private reqId = 0;
+  /** holding a reference on the shared decoding worker */
+  private engine = false;
   private useBitmap = typeof OffscreenCanvas !== 'undefined';
   private grabCanvas: HTMLCanvasElement | null = null;
   private native: NativeDetector | null = null;
-  private srName = 'off';
 
   private frame = 0;
   private lastHint: { hint: QRHint; at: number } | null = null; // video px
@@ -153,10 +146,22 @@ export class QRScanner {
 
   /* ---------------- capabilities ---------------- */
 
-  /** Start downloading the decoding engine now (idempotent). */
+  /**
+   * Download the decoding engine and compile its WebAssembly now, so the first scan starts
+   * instantly. Call it when your "Scan" button appears. Idempotent.
+   */
   static preload(): Promise<void> {
-    return loadWorkerSource().then(() => undefined);
+    return engineHost.warm();
   }
+
+  /** Free the shared decoding worker now instead of after the idle timeout. */
+  static dispose(): void {
+    engineHost.dispose();
+  }
+
+  /** How long (ms) the shared worker stays warm after the last scanner stops. Default 30 000. */
+  static get engineIdleTimeout(): number { return engineHost.idleTimeout; }
+  static set engineIdleTimeout(ms: number) { engineHost.idleTimeout = ms; }
 
   static isSupported(): boolean {
     return typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
@@ -168,7 +173,7 @@ export class QRScanner {
   /** true when zoom is simulated on the video (no hardware zoom API). */
   get isDigitalZoom() { return this.digital; }
   /** Which super-resolution backend the worker ended up with: js | onnx-webgpu | onnx-wasm | off */
-  get superResolutionBackend() { return this.srName; }
+  get superResolutionBackend() { return engineHost.srBackend; }
   get canTorch() {
     const c = this.track?.getCapabilities?.() as (MediaTrackCapabilities & { torch?: boolean }) | undefined;
     return !!c?.torch;
@@ -222,10 +227,7 @@ export class QRScanner {
     this.track = null;
     this.video.srcObject = null;
     this.video.style.transform = '';
-    this.worker?.terminate();
-    this.worker = null;
-    this.pending.forEach((r) => r(null));
-    this.pending.clear();
+    this.releaseEngine();
     this.lastHint = null;
     this.zoomValue = 1;
   }
@@ -286,7 +288,8 @@ export class QRScanner {
   async scanImage(src: Blob | ImageBitmap): Promise<ScanResult | null> {
     const bmp = src instanceof Blob ? await createImageBitmap(src) : src;
     // camera not started (e.g. permission denied → user picks a photo): still use the WASM worker
-    if (!this.worker) await this.setupDetectors();
+    const temporary = !this.engine;
+    if (temporary) await this.setupDetectors();
     try {
       const long = Math.max(bmp.width, bmp.height);
       const sizes = [...new Set([Math.min(long, 1600), Math.min(long, 1000), Math.min(long, 2600)])];
@@ -312,6 +315,7 @@ export class QRScanner {
       return null;
     } finally {
       if (src instanceof Blob) bmp.close();
+      if (temporary && !this.running) this.releaseEngine();
     }
   }
 
@@ -363,31 +367,15 @@ export class QRScanner {
         .then((f) => { if (f.includes('qr_code')) this.native = new BD({ formats: ['qr_code'] }); })
         .catch(() => {});
     }
-    // worker (inline blob → works with every bundler)
-    this.worker = null;
-    if (typeof Worker !== 'undefined') {
-      try {
-        const workerSource = await loadWorkerSource();
-        const url = URL.createObjectURL(new Blob([workerSource], { type: 'text/javascript' }));
-        const w = new Worker(url);
-        URL.revokeObjectURL(url);
-        w.onmessage = (e: MessageEvent<{ id: number; type?: string; sr?: string; result?: AnalyzeResult; error?: string }>) => {
-          if (e.data.type === 'config-done') { this.srName = e.data.sr ?? 'off'; return; }
-          const cb = this.pending.get(e.data.id);
-          this.pending.delete(e.data.id);
-          cb?.(e.data.result ?? null);
-        };
-        w.onerror = () => { // e.g. CSP blocks blob workers → main-thread jsQR fallback
-          this.worker?.terminate();
-          this.worker = null;
-          this.pending.forEach((r) => r(null));
-          this.pending.clear();
-        };
-        this.worker = w;
-        const sr = this.opts.superResolution;
-        w.postMessage({ type: 'config', sr: sr === false ? 'off' : sr, ortUrl: this.opts.onnxRuntimeUrl });
-      } catch { this.worker = null; }
+    // shared, warm decoding worker (inline blob → works with every bundler)
+    if (!this.engine) {
+      const sr = this.opts.superResolution;
+      this.engine = await engineHost.acquire({ sr: sr === false ? 'off' : sr, ortUrl: this.opts.onnxRuntimeUrl });
     }
+  }
+
+  private releaseEngine() {
+    if (this.engine) { this.engine = false; engineHost.release(); }
   }
 
   private async loop(token: number) {
@@ -407,7 +395,7 @@ export class QRScanner {
   /** Copy a region of the video, scaled to tw×th, in whichever form the analyser wants. */
   private async grab(c: Crop, tw: number, th: number): Promise<Grabbed> {
     const v = this.video;
-    if (this.useBitmap && this.worker) {
+    if (this.useBitmap && this.engine && engineHost.alive) {
       try {
         const b = await createImageBitmap(v, c.x, c.y, c.w, c.h, { resizeWidth: tw, resizeHeight: th, resizeQuality: 'low' });
         if (Math.abs(b.width - tw) <= 1) return { bitmap: b, src: b };
@@ -424,14 +412,7 @@ export class QRScanner {
   }
 
   private async analyzeFrame(f: Frame, opts: AnalyzeOptions): Promise<AnalyzeResult | null> {
-    if (this.worker) {
-      const id = ++this.reqId;
-      return new Promise((resolve) => {
-        this.pending.set(id, resolve);
-        if ('bitmap' in f) this.worker!.postMessage({ id, bitmap: f.bitmap, opts }, [f.bitmap]);
-        else this.worker!.postMessage({ id, pixels: f.pixels, width: f.width, height: f.height, opts }, [f.pixels]);
-      });
-    }
+    if (this.engine && engineHost.alive) return engineHost.analyze(f, opts);
     // no worker (blocked by CSP): jsQR on the main thread – loaded only in this rare case
     const [{ analyze }, { jsqrDecoder }] = await Promise.all([import('./engine'), import('./decoder-jsqr')]);
     let img: { data: Uint8ClampedArray; width: number; height: number };

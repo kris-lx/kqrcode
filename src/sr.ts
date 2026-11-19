@@ -7,22 +7,26 @@
  *
  * Verified against OpenCV DNN output in test/sr.test.ts.
  */
-import { SR_LAYOUT, SR_WEIGHTS_B64 } from './sr-weights.generated';
+import { SR_LAYOUT, SR_ONNX_B64 } from './sr-model.generated';
 
 const SLOPE = 0.05000000074505806;
 
-let W: Float32Array | null = null;
-function weights(): Float32Array {
-  if (W) return W;
-  const bin = atob(SR_WEIGHTS_B64);
-  const u8 = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
-  W = new Float32Array(u8.buffer);
-  return W;
-}
+// Weights are read straight out of the ONNX model bytes (single copy shipped for both backends).
+let model: Uint8Array | null = null;
+const cache = new Map<string, Float32Array>();
 const param = (name: string): Float32Array => {
+  let w = cache.get(name);
+  if (w) return w;
+  if (!model) {
+    const bin = atob(SR_ONNX_B64);
+    model = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) model[i] = bin.charCodeAt(i);
+  }
   const [off, n] = SR_LAYOUT[name];
-  return weights().subarray(off, off + n);
+  // raw_data is little-endian float32 but not necessarily 4-byte aligned → copy once
+  w = new Float32Array(model.slice(off, off + n * 4).buffer);
+  cache.set(name, w);
+  return w;
 };
 
 function leaky(a: Float32Array) {

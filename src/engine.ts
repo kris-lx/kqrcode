@@ -79,7 +79,6 @@ export interface AnalyzeResult {
 /* ------------------------------------------------------------------ */
 
 let grayBuf: Uint8Array | null = null;
-let integralBuf: Uint32Array | null = null;
 
 function toGray(img: AnalyzeInput): { gray: Uint8Array; luma: number } {
   const n = img.width * img.height;
@@ -96,24 +95,6 @@ function toGray(img: AnalyzeInput): { gray: Uint8Array; luma: number } {
   return { gray: g, luma: sum / Math.ceil(n / 16) };
 }
 
-function buildIntegral(gray: Uint8Array, w: number, h: number): Uint32Array {
-  const W = w + 1;
-  const size = W * (h + 1);
-  if (!integralBuf || integralBuf.length !== size) integralBuf = new Uint32Array(size);
-  const I = integralBuf;
-  I.fill(0, 0, W);
-  for (let y = 0; y < h; y++) {
-    let row = 0;
-    const o = (y + 1) * W;
-    const p = y * W;
-    I[o] = 0;
-    for (let x = 0; x < w; x++) {
-      row += gray[y * w + x];
-      I[o + x + 1] = I[p + x + 1] + row;
-    }
-  }
-  return I;
-}
 
 /* ------------------------------------------------------------------ */
 /* finder pattern locator                                              */
@@ -140,22 +121,62 @@ function ratioOk(r: number[], strict = false): boolean {
   );
 }
 
-export function locate(gray: Uint8Array, w: number, h: number, invert = false): QRHint | null {
-  const I = buildIntegral(gray, w, h);
-  const W = w + 1;
-  const half = Math.max(8, w >> 4);
+let thrBuf: Uint8Array | null = null;
+let blockBuf: Float32Array | null = null;
 
-  /** adaptive threshold: black if clearly darker than its neighbourhood */
-  const black = (x: number, y: number): boolean => {
-    const x0 = x - half < 0 ? 0 : x - half;
-    const x1 = x + half + 1 > w ? w : x + half + 1;
-    const y0 = y - half < 0 ? 0 : y - half;
-    const y1 = y + half + 1 > h ? h : y + half + 1;
-    const cnt = (x1 - x0) * (y1 - y0);
-    const sum = I[y1 * W + x1] - I[y0 * W + x1] - I[y1 * W + x0] + I[y0 * W + x0];
-    const dark = gray[y * w + x] * cnt < sum * 0.9;
-    return invert ? gray[y * w + x] * cnt > sum * 1.1 : dark;
-  };
+/**
+ * Per-pixel adaptive threshold map, built from 16×16 block means smoothed over a window of
+ * about w/8 (same neighbourhood as a w/16-radius integral window, ~4× cheaper per lookup).
+ * Returns the threshold *block* map; a pixel is "dark" when gray < thr[block].
+ */
+function blockThresholds(gray: Uint8Array, w: number, h: number, factor: number) {
+  const B = 16;
+  const bw = Math.ceil(w / B), bh = Math.ceil(h / B);
+  if (!blockBuf || blockBuf.length !== bw * bh) blockBuf = new Float32Array(bw * bh);
+  const mean = blockBuf;
+  // block means (sampling every 2nd pixel/row is plenty for a local mean)
+  for (let by = 0; by < bh; by++) {
+    const y0 = by * B, y1 = Math.min(h, y0 + B);
+    for (let bx = 0; bx < bw; bx++) {
+      const x0 = bx * B, x1 = Math.min(w, x0 + B);
+      let sum = 0, n = 0;
+      for (let y = y0; y < y1; y += 2) {
+        const row = y * w;
+        for (let x = x0; x < x1; x += 2) { sum += gray[row + x]; n++; }
+      }
+      mean[by * bw + bx] = sum / n;
+    }
+  }
+  // smooth over (2R+1)² blocks with a summed-area table on the (small) block grid
+  const R = Math.max(2, Math.round(w / 16 / B));
+  const SW = bw + 1;
+  const S = new Float32Array(SW * (bh + 1));
+  for (let by = 0; by < bh; by++) {
+    let row = 0;
+    for (let bx = 0; bx < bw; bx++) {
+      row += mean[by * bw + bx];
+      S[(by + 1) * SW + bx + 1] = S[by * SW + bx + 1] + row;
+    }
+  }
+  if (!thrBuf || thrBuf.length !== bw * bh) thrBuf = new Uint8Array(bw * bh);
+  const thr = thrBuf;
+  for (let by = 0; by < bh; by++) {
+    const y0 = Math.max(0, by - R), y1 = Math.min(bh, by + R + 1);
+    for (let bx = 0; bx < bw; bx++) {
+      const x0 = Math.max(0, bx - R), x1 = Math.min(bw, bx + R + 1);
+      const sum = S[y1 * SW + x1] - S[y0 * SW + x1] - S[y1 * SW + x0] + S[y0 * SW + x0];
+      thr[by * bw + bx] = Math.min(255, (sum / ((x1 - x0) * (y1 - y0))) * factor);
+    }
+  }
+  return { thr, bw };
+}
+
+export function locate(gray: Uint8Array, w: number, h: number, invert = false): QRHint | null {
+  // dark: clearly darker than the neighbourhood (0.9×); inverted codes: clearly brighter (1.1×)
+  const { thr, bw } = blockThresholds(gray, w, h, invert ? 1.1 : 0.9);
+  const black = invert
+    ? (x: number, y: number): boolean => gray[y * w + x] > thr[(y >> 4) * bw + (x >> 4)]
+    : (x: number, y: number): boolean => gray[y * w + x] < thr[(y >> 4) * bw + (x >> 4)];
 
   /** count runs along a direction through (cx,cy); returns centre & total length */
   const cross = (cx: number, cy: number, dx: number, dy: number, expected: number) => {

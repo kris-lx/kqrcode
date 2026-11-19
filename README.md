@@ -29,13 +29,13 @@ Every engine sees **the same pixels**: hard synthetic camera frames with perspec
 
 | Scenario | **kqrcode** | WeChat ¹ | ZXing-WASM | jsQR |
 | :--- | :---: | :---: | :---: | :---: |
-| **🎯 Decode rate: all frames** | **`64%`** 🏆 | `62%` | `61%` | `42%` |
+| **🎯 Decode rate: all frames** | **`65%`** 🏆 | `62%` | `61%` | `42%` |
 | **🔭 Far: 1.5 px modules** | `17%` | **`29%`** 🏆 | `4%` | `0%` |
 | **🔭 Far: 2.5 px modules** | **`63%`** 🏆 | `50%` | **`63%`** 🏆 | `25%` |
-| **🌫️ Blurred (σ 0.8)** | **`73%`** 🏆 | **`73%`** 🏆 | `67%` | `46%` |
+| **🌫️ Blurred (σ 0.8)** | **`75%`** 🏆 | `73%` | `67%` | `46%` |
 | **🌗 Low contrast** | **`61%`** 🏆 | `53%` | `60%` | `44%` |
-| **⏱️ Latency per frame (p50 / p95)** | `15.4 ms`<br><sub>p95: 58.7 ms</sub> | `13.9 ms`<br><sub>p95: 96.4 ms</sub> | **`7.6 ms`** 🏆<br><sub>p95: 12.4 ms</sub> | `33.7 ms`<br><sub>p95: 48.3 ms</sub> |
-| **💤 Frame without a code (p50)** | `23.2 ms` | `292.5 ms` | **`4.9 ms`** 🏆 | `98.4 ms` |
+| **⏱️ Latency per frame (p50 / p95)** | `14.4 ms`<br><sub>p95: 50.6 ms</sub> | `13.4 ms`<br><sub>p95: 106.7 ms</sub> | **`10.6 ms`** 🏆<br><sub>p95: 12.4 ms</sub> | `34.0 ms`<br><sub>p95: 50.1 ms</sub> |
+| **💤 Frame without a code (p50)** | `18.8 ms` | `271.1 ms` | **`8.6 ms`** 🏆 | `116.3 ms` |
 
 > 144 synthetic 1280×720 frames + 8 without a code · single CPU thread · last updated 2026-11-19
 
@@ -44,7 +44,7 @@ Every engine sees **the same pixels**: hard synthetic camera frames with perspec
 ¹ WeChat = OpenCV `wechat_qrcode` 4.14, native C++, 1 thread. kqrcode uses `superResolution: 'webgpu'`; the default `'js'` mode scores within 1 point.
 
 **Where kqrcode wins:**
-- Frames with **no code**, which is most of what a live camera sees: about 12× less work than WeChat's CNN detector.
+- Frames with **no code**, which is most of what a live camera sees: about 14× less work than WeChat's CNN detector.
 - Mid-range and low-contrast codes.
 
 **Where WeChat still wins:** the very farthest codes (1.5 px per module), thanks to its CNN detector.
@@ -72,7 +72,7 @@ Every engine sees **the same pixels**: hard synthetic camera frames with perspec
 * **WeChat Super-Resolution on WebGPU**: Small, blurry codes that still fail get upscaled by WeChat's super-resolution CNN (5.3k parameters, checked against OpenCV's output) before a last decode attempt.
   * Backends: ONNX Runtime Web on **WebGPU**, its WASM backend, or a built-in zero-download kernel.
   * A 128 px region takes about 10 ms on an integrated GPU.
-* **14 kB Initial Load**: The UI and scanner logic are about 14 kB gzipped. The decoding engine (~640 kB) is a separate chunk that downloads when the scanner first opens, or earlier with `QRScanner.preload()`.
+* **14 kB Initial Load**: The UI and scanner logic are about 14 kB gzipped. The decoding engine (~460 kB, with the WebAssembly gzip-compressed inside) is a separate chunk that downloads when the scanner first opens, or earlier with `QRScanner.preload()`, which also compiles it in the background. One warm worker is shared by every scanner on the page, so reopening the scanner is instant.
 * **Brandable to the Pixel**:
   * Five themes: `wechat`, `alipay`, `grid`, `frame` and `none`.
   * 15 CSS variables and 18 `::part()` hooks.
@@ -105,7 +105,7 @@ import { scanQR } from 'kqrcode';
 const { text } = await scanQR({ theme: 'wechat', locale: 'lo', heading: 'ສະແກນເພື່ອຈ່າຍ' });
 ```
 
-No bundler? Use one script tag:
+No bundler? Use one script tag (17 kB; the engine loads from `kqrcode.engine.js` next to it on first use):
 
 ```html
 <script src="https://cdn.jsdelivr.net/npm/kqrcode/dist/kqrcode.global.js"></script>
@@ -348,7 +348,8 @@ if (text.startsWith('000201')) {
 
 * **HTTPS**: browsers only allow the camera on secure origins (`localhost` works in development).
 * **CSP**: allow `worker-src blob:` and `script-src 'wasm-unsafe-eval'`. Run `npx kqrcode doctor` to check.
-* **Preload**: call `QRScanner.preload()` when your scan button appears, so the first scan opens instantly.
+* **Preload**: call `QRScanner.preload()` when your scan button appears. It downloads and compiles the engine, so the first scan opens instantly.
+* **Self-hosting the `<script>` build**: serve `kqrcode.global.js`, `kqrcode.engine.js` and `kqrcode.jsqr.js` from the same directory.
 * **WebGPU super-resolution**: self-host ONNX Runtime Web and set `onnx-runtime-url` if you don't want third-party script loads.
 
 ---

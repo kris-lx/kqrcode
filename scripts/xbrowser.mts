@@ -158,7 +158,7 @@ async function run(name: string, b: Browser): Promise<R> {
     __scene({ show: false });
     for (let i = 0; i < 20; i++) { const s = new QRScanner({ video: v }); await s.start(); await new Promise((r) => setTimeout(r, 80)); s.stop(); }
     await new Promise((r) => setTimeout(r, 300));
-    return 'workers alive=' + __alive() + ', live camera tracks=' + __liveTracks();`).catch((e) => 'FAIL ' + e);
+    const warm = __alive(); QRScanner.dispose(); return 'shared worker kept warm=' + warm + ', after dispose()=' + __alive() + ', live camera tracks=' + __liveTracks();`).catch((e) => 'FAIL ' + e);
 
   out.pageErrors = errs.length ? errs.slice(0, 3).join(' | ') : 'none';
   await page.close();

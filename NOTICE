@@ -23,5 +23,8 @@ This product includes software and models developed by third parties:
 4. jsQR (fallback decoder), Copyright (c) the jsQR authors. Apache License, Version 2.0
    – see licenses/jsQR-Apache-2.0.txt. Source: https://github.com/cozmo/jsQR
 
+5. fflate (gzip fallback for browsers without DecompressionStream), Copyright (c) 2023 Arjun Barrett.
+   MIT License – see licenses/fflate-MIT.txt. Source: https://github.com/101arrowz/fflate
+
 ONNX Runtime Web (MIT, Microsoft) is NOT bundled; it is only loaded at runtime from a URL
 you configure when superResolution: 'webgpu' is used.

@@ -134,7 +134,9 @@ await scanner.start();
 | `focusAt(x, y)` | tap-to-focus, normalised 0–1 coordinates |
 | `scanImage(blobOrBitmap): Promise<ScanResult \| null>` | decode a photo; works without a camera |
 | `on(event, fn): () => void` | subscribe; returns an unsubscribe function |
-| `QRScanner.preload()` | start downloading the decoder |
+| `QRScanner.preload()` | download and compile the decoder now, so the first scan starts instantly |
+| `QRScanner.dispose()` | free the shared decoding worker immediately (otherwise freed after `engineIdleTimeout`) |
+| `QRScanner.engineIdleTimeout` | ms the shared worker stays warm after the last scanner stops (default `30000`) |
 | `QRScanner.isSupported()` | `getUserMedia` available |
 
 Read-only: `zoom`, `zoomMin`, `zoomMax`, `canZoom`, `canTorch`, `isDigitalZoom`, `superResolutionBackend`.

@@ -22,6 +22,18 @@ writeFileSync(y4m, Buffer.concat(parts));
 const root = ROOT;
 const srv = createServer((req, res) => {
   const url = (req.url || '/').split('?')[0];
+  if (url === '/global') { // <script> build: engine fetched from kqrcode.engine.js next to it
+    res.setHeader('content-type', 'text/html; charset=utf-8');
+    res.end(`<!doctype html><body><script src="/dist/kqrcode.global.js"></script><script>
+      KQRCode.scanQR({ theme: 'grid' }).then((r) => { window.__g = { text: r.text }; }, (e) => { window.__g = { err: String(e) }; });
+    </script>`); return; }
+  if (url === '/csp') { // strict CSP without 'wasm-unsafe-eval' → worker can't compile WASM → jsQR fallback
+    res.setHeader('content-type', 'text/html; charset=utf-8');
+    res.setHeader('content-security-policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; worker-src blob:; img-src 'self' blob: data:; media-src 'self' blob: mediastream:");
+    res.end(`<!doctype html><body><script type="module">
+      import { scanQR } from '/dist/index.js';
+      scanQR().then((r) => { window.__c = { text: r.text }; }, (e) => { window.__c = { err: String(e) }; });
+    </script>`); return; }
   if (url === '/scanqr') { res.setHeader('content-type', 'text/html; charset=utf-8'); res.end(`<!doctype html><body><script type="module">
     import { scanQR, QRScanner } from '/dist/index.js';
     QRScanner.preload();
@@ -81,6 +93,15 @@ if (process.argv.includes('--el')) {
   await p2.waitForTimeout(200);
   await p2.screenshot({ path: TMP + 'el2.png' });
   console.log('element scan:', await p2.evaluate(() => (window as any).__scan || (window as any).__err));
+}
+for (const [flag, path, key] of [['--global', '/global', '__g'], ['--csp', '/csp', '__c']] as const) {
+  if (!process.argv.includes(flag)) continue;
+  const pg = await browser.newPage();
+  pg.on('pageerror', (e) => console.log('[pageerror]', e.message));
+  const t0 = Date.now();
+  await pg.goto('http://localhost:5199' + path);
+  await pg.waitForFunction((k) => (window as any)[k], key, { timeout: 20000 }).catch(() => {});
+  console.log(flag.slice(2) + ':', JSON.stringify(await pg.evaluate((k) => (window as any)[k] ?? null, key)), (Date.now() - t0) + ' ms');
 }
 if (process.argv.includes('--scanqr')) {
   const p3 = await browser.newPage();

@@ -1,5 +1,7 @@
 # Benchmark: kqrcode vs jsQR, ZXing and the real WeChat engine
 
+> The latest auto-generated numbers are in [`bench/results.md`](../bench/results.md) and the README table (`npm run bench`). This page explains the method; its tables are from the 0.1.0 run.
+
 Machine: Intel Core Ultra 5 125U laptop (Intel Xe-LPG GPU), Windows 11, Node 26, Chrome 157. Run on 2026-11-19.
 Reproduce: `npx tsx bench/run.mts` (accuracy + CPU latency) and `npx tsx bench/browser.mts` (Chrome / WebGPU).
 Raw numbers: `bench/results.md`, plus `bench/out/*.json` after a local run.
