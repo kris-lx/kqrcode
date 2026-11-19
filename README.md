@@ -408,4 +408,20 @@ Headless `QRScanner`, every option and every type: **[docs/API.md](docs/API.md)*
 
 ---
 
+## ☕ Buy Me a Coffee
+
+If kqrcode saves you time, you can support its development with a coffee. Every cup is appreciated! 🙏
+
+<table align="center">
+  <tr>
+    <td align="center"><img src="docs/assets/support/wechat-pay.png" alt="WeChat Pay" width="200" /><br /><b>WeChat Pay</b> · 微信支付</td>
+    <td align="center"><img src="docs/assets/support/lao-qr.png" alt="LAO QR" width="200" /><br /><b>LAO QR</b> · ໂອນຜ່ານ LAPNet</td>
+    <td align="center"><img src="docs/assets/support/alipay.png" alt="Alipay" width="200" /><br /><b>Alipay</b> · 支付宝</td>
+  </tr>
+</table>
+
+<p align="center"><sub>Each code above was decoded by kqrcode itself before being added here. 😉</sub></p>
+
+---
+
 **Maintained by [kris](https://github.com/kris-lx) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md) · License: [MIT](LICENSE)** (third-party notices: [NOTICE](NOTICE))
