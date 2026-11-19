@@ -67,7 +67,7 @@ Use `demo/index.html` served over HTTPS (for example `npx serve` behind a tunnel
 ## Benchmarks
 
 ```bash
-npx tsx bench/run.mts        # accuracy + CPU latency → bench/results.md
+npm run bench               # accuracy + CPU latency → bench/results.md, then refreshes the README table
 npx tsx bench/browser.mts    # super-resolution in Chrome (JS / WASM / WebGPU)
 ```
 

@@ -60,12 +60,15 @@
     "LICENSE",
     "NOTICE",
     "THIRD_PARTY_NOTICES.md",
-    "licenses"
+    "licenses",
+    "llms.txt"
   ],
   "scripts": {
     "build": "node scripts/build.mjs && tsc -p tsconfig.build.json",
     "test": "tsx --test test/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "bench": "tsx bench/run.mts && tsx bench/update-readme.mts",
+    "bench:readme": "tsx bench/update-readme.mts"
   },
   "peerDependencies": {
     "react": ">=17",

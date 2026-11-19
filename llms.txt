@@ -1,0 +1,57 @@
+# kqrcode
+
+> Full-screen QR code scanner for the web (WeChat/Alipay style). It scans the whole camera view at any angle and auto-zooms on far codes. ZXing-C++ WASM decoder in a Web Worker, optional WeChat super-resolution (WebGPU). React, Vue, Svelte, Angular, plain HTML. ESM + CJS + IIFE, TypeScript types, SSR-safe imports.
+
+Install: `npx kqrcode init` (auto-detects the framework and writes a component) or `npm i kqrcode`.
+Requires HTTPS (or localhost). CSP needs: `worker-src blob:` and `script-src 'wasm-unsafe-eval'`.
+
+## Entry points
+
+- `kqrcode`: scanQR, QRScanner, ScanError, KQRScannerElement, defineScannerElement, LABELS, THEME_VARS, TAG_NAME ('kqr-scanner'). Registers <kqr-scanner> on import (browser only).
+- `kqrcode/react`: <QRScanner> (client component)
+- `kqrcode/vue`: <QRScanner>
+- `kqrcode/svelte`: qrScanner action
+- `kqrcode/sr`: superResolve, createOnnxSuperRes, srModelBytes (the model on its own)
+- CDN: https://cdn.jsdelivr.net/npm/kqrcode/dist/kqrcode.global.js (global `KQRCode`)
+
+## scanQR(options?): Promise<ScanResult>
+
+Opens the scanner, resolves with the first code and removes itself. Rejects with ScanError (camera problem), or with a DOMException named 'AbortError' (user closed it or the signal aborted).
+options: theme ('wechat'|'alipay'|'grid'|'frame'|'none'), locale ('en'|'lo'|'zh'), heading, labels, facing ('environment'|'user'), success ('dot'|'box'|'none'), torch ('auto'|'always'|'never'), zoomControl ('slider'|'none'), gallery, beep, vibrate, autoZoom (booleans, default true), maxZoom (8), superResolution ('js'|'webgpu'|'off', default 'js'), onnxRuntimeUrl, style (CSS variables), slots ({ [slotName]: Node|string }), container (HTMLElement), inline (boolean), signal (AbortSignal).
+
+## <kqr-scanner> attributes
+
+theme, locale, heading, facing, continuous, inline, success, torch, zoom-control, max-zoom, super-resolution, onnx-runtime-url, no-auto-zoom, no-close, no-gallery, no-beep, no-vibrate, no-candidates, keep-camera, manual, request-fullscreen.
+Events (CustomEvent.detail): scan (ScanResult), error (ScanError), close, ready, zoom ({zoom,min,max,auto,digital}).
+Methods: start(), stop(), close(), resume(), pickImage(), toggleTorch(on?). Property: labels (Partial<ScannerLabels>), scanner (QRScanner).
+Slots: top-left, top-center, top-right, hint, actions-left, actions-right, footer, error.
+Parts: stage, video, candidates, effect, scanline, frame, success, focus-ring, top, title, close, bottom, hint, torch, zoom, actions, gallery, error.
+CSS variables: --kqr-accent, --kqr-success, --kqr-mask, --kqr-frame-size, --kqr-frame-top, --kqr-frame-radius, --kqr-corner-size, --kqr-corner-width, --kqr-scan-duration, --kqr-line-width, --kqr-text, --kqr-font, --kqr-button-bg, --kqr-button-size, --kqr-bg.
+
+## Wrappers
+
+React: <QRScanner theme locale heading facing continuous inline success torch zoomControl maxZoom superResolution noAutoZoom noGallery noTorch noBeep noVibrate noClose labels style onScan onError onClose onReady>{children with slot="…"}</QRScanner>
+Vue: same props in camelCase; emits scan, error, close, ready; the default slot is passed through.
+Svelte: <div use:qrScanner={{ ...sameOptions, onScan, onError, onClose, onReady, style }}> ; children use data-slot="…" (not slot=).
+Angular: import 'kqrcode'; add CUSTOM_ELEMENTS_SCHEMA; <kqr-scanner (scan)="f($any($event).detail)">.
+Nuxt: render client-only (<ClientOnly> or *.client.vue). Next.js: the wrapper already has 'use client'.
+
+## QRScanner (headless)
+
+new QRScanner({ video: HTMLVideoElement, facingMode?, deviceId?, autoZoom? = true, maxZoom? = 8, continuous? = false, maxFrameSide? = 1920, hiRes? = true, superResolution?: 'js'|'webgpu'|false, onnxRuntimeUrl? })
+Methods: start(), stop(), pause(), resume(), switchCamera(), setZoom(z, byUser = true), setTorch(on): Promise<boolean>, focusAt(x, y), scanImage(Blob|ImageBitmap): Promise<ScanResult|null>, on(event, fn): unsubscribe.
+Static: QRScanner.preload(), QRScanner.isSupported().
+Getters: zoom, zoomMin, zoomMax, canZoom, canTorch, isDigitalZoom, superResolutionBackend.
+Events: result (ScanResult), error (ScanError), hint ({ hint: {cx,cy,size,module,full}|null, decoded, videoWidth, videoHeight }), zoom, dark (boolean).
+
+## Types
+
+ScanResult { text: string; bytes: Uint8Array; corners: {x,y}[] (TL,TR,BR,BL in video px; [] for photos); format: 'qr_code'; zoom: number; timestamp: number; source: 'camera'|'image' }
+ScanError extends Error { code: 'insecure-context'|'unsupported'|'permission-denied'|'no-camera'|'camera-busy'|'unknown' }
+
+## Notes
+
+- Treat ScanResult.text as untrusted input. Validate it, and never inject it as HTML.
+- Call QRScanner.preload() early so the ~640 kB engine is cached before the first scan.
+- iOS Safari has no camera zoom API, so kqrcode uses digital zoom on a 4K stream.
+- CLI: `npx kqrcode init [--framework X] [--pm X] [--theme X] [--locale X] [--out path] [--no-install] [--force] [--dry-run]`, `npx kqrcode doctor`.
