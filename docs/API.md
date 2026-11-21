@@ -6,14 +6,14 @@ k-qr-scanner offers three levels of control:
 2. **[`<kqr-scanner>`](#the-kqr-scanner-element)**: the full-screen UI as a custom element, for templates and frameworks.
 3. **[`QRScanner`](#qrscanner-headless)**: the camera and decoding engine with no UI, for your own interface.
 
-Also on this page: [the `accept` callback](#the-accept-callback), [types](#types), [framework wrappers](#framework-wrappers), [super-resolution](#super-resolution), [`k-qr-scanner/sr`](#k-qr-scannersr) and [the CLI](#cli).
+Also on this page: [the `accept` callback](#the-accept-callback), [types](#types), [framework wrappers](#framework-wrappers), [super-resolution](#super-resolution), [`@krislxx/k-qr-scanner/sr`](#k-qr-scannersr) and [the CLI](#cli).
 
 ---
 
 ## `scanQR()`
 
 ```ts
-import { scanQR } from 'k-qr-scanner';
+import { scanQR } from '@krislxx/k-qr-scanner';
 
 function scanQR(options?: ScanQROptions): Promise<ScanResult>;
 ```
@@ -56,7 +56,7 @@ It rejects with:
 
 ## The `<kqr-scanner>` element
 
-Importing `k-qr-scanner` or any framework wrapper registers the element. On the server, registration is skipped.
+Importing `@krislxx/k-qr-scanner` or any framework wrapper registers the element. On the server, registration is skipped.
 
 ```html
 <kqr-scanner theme="alipay" locale="lo" continuous></kqr-scanner>
@@ -122,7 +122,7 @@ Styling with themes, CSS variables, `::part()` and slots: [CUSTOMIZE.md](CUSTOMI
 The camera, auto-zoom and decoding engine without any UI. You provide the `<video>` element and draw your own interface.
 
 ```ts
-import { QRScanner } from 'k-qr-scanner';
+import { QRScanner } from '@krislxx/k-qr-scanner';
 
 const scanner = new QRScanner({ video: document.querySelector('video')! });
 scanner.on('result', (r) => console.log(r.text));
@@ -234,7 +234,7 @@ class ScanError extends Error {
 interface QRHint { cx: number; cy: number; size: number; module: number; full: boolean }
 ```
 
-Other exports from `k-qr-scanner`: `KQRScannerElement` and `defineScannerElement()` (the element class and its registration), `TAG_NAME` (`'kqr-scanner'`), `LABELS` (the built-in texts), `THEME_VARS` (the CSS variable names) and `QR_FORMATS`.
+Other exports from `@krislxx/k-qr-scanner`: `KQRScannerElement` and `defineScannerElement()` (the element class and its registration), `TAG_NAME` (`'kqr-scanner'`), `LABELS` (the built-in texts), `THEME_VARS` (the CSS variable names) and `QR_FORMATS`.
 
 ---
 
@@ -242,10 +242,10 @@ Other exports from `k-qr-scanner`: `KQRScannerElement` and `defineScannerElement
 
 | import | export | notes |
 | :--- | :--- | :--- |
-| `k-qr-scanner/react` | `<QRScanner>` | attributes as camelCase props, plus `onScan`, `onReject`, `onError`, `onClose`, `onReady`; children with `slot="…"` go into the UI; ships with `'use client'` |
-| `k-qr-scanner/vue` | `<QRScanner>` | the same props; emits `scan`, `reject`, `error`, `close`, `ready`; the default slot goes into the UI |
-| `k-qr-scanner/svelte` | `use:qrScanner={options}` | an action; children with `data-slot="…"` go into the UI |
-| `k-qr-scanner/react-native` | `<QRScanner>` | iOS, Android and Expo; see [REACT_NATIVE.md](REACT_NATIVE.md) |
+| `@krislxx/k-qr-scanner/react` | `<QRScanner>` | attributes as camelCase props, plus `onScan`, `onReject`, `onError`, `onClose`, `onReady`; children with `slot="…"` go into the UI; ships with `'use client'` |
+| `@krislxx/k-qr-scanner/vue` | `<QRScanner>` | the same props; emits `scan`, `reject`, `error`, `close`, `ready`; the default slot goes into the UI |
+| `@krislxx/k-qr-scanner/svelte` | `use:qrScanner={options}` | an action; children with `data-slot="…"` go into the UI |
+| `@krislxx/k-qr-scanner/react-native` | `<QRScanner>` | iOS, Android and Expo; see [REACT_NATIVE.md](REACT_NATIVE.md) |
 
 Examples for every framework: [FRAMEWORKS.md](FRAMEWORKS.md).
 
@@ -261,17 +261,17 @@ Small or blurry codes that still fail to decode get one more try: the region is 
 | `'webgpu'` | ONNX Runtime Web on WebGPU, falling back to its WebAssembly backend, then to `'js'` | loads ONNX Runtime Web from `onnxRuntimeUrl` |
 | `'off'` | – | – |
 
-## `k-qr-scanner/sr`
+## `@krislxx/k-qr-scanner/sr`
 
-The super-resolution model on its own, for your own image pipelines: `superResolve(gray, height, width)`, `createOnnxSuperRes(ort, providers)` and `srModelBytes()`. The ONNX file is also available as `k-qr-scanner/models/wechat_sr.onnx`.
+The super-resolution model on its own, for your own image pipelines: `superResolve(gray, height, width)`, `createOnnxSuperRes(ort, providers)` and `srModelBytes()`. The ONNX file is also available as `@krislxx/k-qr-scanner/models/wechat_sr.onnx`.
 
 ---
 
 ## CLI
 
 ```bash
-npx k-qr-scanner init      # install and write a starter component
-npx k-qr-scanner doctor    # check the project setup
+npx @krislxx/k-qr-scanner init      # install and write a starter component
+npx @krislxx/k-qr-scanner doctor    # check the project setup
 ```
 
 `init` detects the framework (Next.js, Nuxt, SvelteKit, Svelte, Angular, Vue, React Native / Expo, React or plain JavaScript) and the package manager (npm, pnpm, yarn or bun), installs the package and writes a scanner component. For React Native it also installs `react-native-webview` and adds the camera permissions.

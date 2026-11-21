@@ -8,7 +8,7 @@
 <p><strong>A WeChat-style QR code scanner for the web and React Native</strong></p>
 
 <p>
-<a href="https://www.npmjs.com/package/k-qr-scanner"><img src="https://img.shields.io/npm/v/k-qr-scanner?style=for-the-badge&logo=npm&color=CB3837" alt="npm version"></a>
+<a href="https://www.npmjs.com/package/@krislxx/k-qr-scanner"><img src="https://img.shields.io/npm/v/@krislxx/k-qr-scanner?style=for-the-badge&logo=npm&color=CB3837" alt="npm version"></a>
 <a href="https://github.com/kris-lx/kqrcode/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/kris-lx/kqrcode/ci.yml?branch=main&label=tests&style=for-the-badge&logo=github" alt="Tests"></a>
 <a href="#size"><img src="https://img.shields.io/badge/initial_load-14_kB_gzip-07c160?style=for-the-badge" alt="14 kB gzip"></a>
 <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-ready-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"></a>
@@ -47,7 +47,7 @@ k-qr-scanner opens a full-screen camera view that reads a QR code **anywhere in 
 ## Install
 
 ```bash
-npx k-qr-scanner init
+npx @krislxx/k-qr-scanner init
 ```
 
 `init` detects your framework and package manager, installs the package and writes a ready-to-use scanner component. For React Native it also installs `react-native-webview` and adds the camera permissions.
@@ -55,13 +55,13 @@ npx k-qr-scanner init
 Or install it yourself:
 
 ```bash
-npm install k-qr-scanner        # pnpm add · yarn add · bun add
+npm install @krislxx/k-qr-scanner        # pnpm add · yarn add · bun add
 ```
 
 ## Quick start
 
 ```ts
-import { scanQR } from 'k-qr-scanner';
+import { scanQR } from '@krislxx/k-qr-scanner';
 
 const { text } = await scanQR({ locale: 'lo', heading: 'ສະແກນເພື່ອຈ່າຍ' });
 ```
@@ -69,7 +69,7 @@ const { text } = await scanQR({ locale: 'lo', heading: 'ສະແກນເພື
 `scanQR()` opens the scanner, resolves with the first code and removes the scanner again. It rejects with a `ScanError` when the camera cannot start, or with an `AbortError` when the user closes it:
 
 ```ts
-import { scanQR, QRScanner, ScanError } from 'k-qr-scanner';
+import { scanQR, QRScanner, ScanError } from '@krislxx/k-qr-scanner';
 
 QRScanner.preload(); // fetch and compile the engine early, e.g. when the Scan button appears
 
@@ -85,7 +85,7 @@ try {
 No build step? Use the script tag:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/k-qr-scanner/dist/kqrcode.global.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@krislxx/k-qr-scanner/dist/kqrcode.global.js"></script>
 
 <kqr-scanner locale="lo"></kqr-scanner>
 <script>
@@ -100,7 +100,7 @@ Every entry point is safe to import during server-side rendering; the scanner on
 **React / Next.js**: the wrapper ships with `'use client'`.
 
 ```tsx
-import { QRScanner } from 'k-qr-scanner/react';
+import { QRScanner } from '@krislxx/k-qr-scanner/react';
 
 {open && (
   <QRScanner locale="lo" onScan={(r) => { setOpen(false); pay(r.text); }} onClose={() => setOpen(false)}>
@@ -130,14 +130,14 @@ import { QRScanner } from 'k-qr-scanner/react';
 **React Native / Expo**: the same scanner, running in a WebView with the engine bundled, so it works offline and in Expo Go.
 
 ```tsx
-import { QRScanner } from 'k-qr-scanner/react-native';
+import { QRScanner } from '@krislxx/k-qr-scanner/react-native';
 
 <Modal visible={open} presentationStyle="fullScreen" onRequestClose={() => setOpen(false)}>
   <QRScanner style={{ flex: 1 }} locale="lo" onScan={(r) => pay(r.text)} onClose={() => setOpen(false)} />
 </Modal>
 ```
 
-The component asks for the camera permission itself, releases the camera while the app is in the background and recovers if the OS kills the WebView. On Expo, the config plugin (`"plugins": ["k-qr-scanner"]`) adds the permission entries.
+The component asks for the camera permission itself, releases the camera while the app is in the background and recovers if the OS kills the WebView. On Expo, the config plugin (`"plugins": ["@krislxx/k-qr-scanner"]`) adds the permission entries.
 
 Full examples for every framework: **[docs/FRAMEWORKS.md](docs/FRAMEWORKS.md)**. React Native setup and props: **[docs/REACT_NATIVE.md](docs/REACT_NATIVE.md)**.
 
@@ -193,7 +193,7 @@ The frame is decoration only: the whole camera image is always scanned. Themes, 
 Bring your own `<video>` and UI, e.g. for a checkout counter that scans continuously:
 
 ```ts
-import { QRScanner } from 'k-qr-scanner';
+import { QRScanner } from '@krislxx/k-qr-scanner';
 
 const scanner = new QRScanner({ video, continuous: true });
 scanner.on('hint', ({ hint }) => drawBox(hint)); // where a code is, even before it can be read
@@ -212,7 +212,7 @@ Every option, method, event and type: **[docs/API.md](docs/API.md)**.
 ## Going to production
 
 - **HTTPS.** Browsers only open the camera on secure origins; `localhost` is fine during development.
-- **Content-Security-Policy.** Allow `worker-src blob:` and `script-src 'wasm-unsafe-eval'`. `npx k-qr-scanner doctor` checks your project for this and more.
+- **Content-Security-Policy.** Allow `worker-src blob:` and `script-src 'wasm-unsafe-eval'`. `npx @krislxx/k-qr-scanner doctor` checks your project for this and more.
 - **Treat scanned text as untrusted input.** Validate it before acting on it, and never insert it as HTML. `accept` is a good place to do this.
 - **Preload.** Call `QRScanner.preload()` when your Scan button appears, so the first scan opens instantly.
 - **Self-hosting the script build.** Serve `kqrcode.global.js`, `kqrcode.engine.js` and `kqrcode.jsqr.js` from one directory.
@@ -286,10 +286,10 @@ Tested with 70 automated tests, production builds of React, Next.js, Nuxt, Svelt
 The package used to be published as `kqr-scanner`. The API is the same; only the package name changed:
 
 ```bash
-npm uninstall kqr-scanner && npm install k-qr-scanner
+npm uninstall kqr-scanner && npm install @krislxx/k-qr-scanner
 ```
 
-Then replace `kqr-scanner` with `k-qr-scanner` in your imports (`'k-qr-scanner/react'` and so on). The `<kqr-scanner>` element and its attributes keep their names. Version 0.2.0 also changed `ScanResult.format`; see the [changelog](CHANGELOG.md).
+Then replace `kqr-scanner` with `@krislxx/k-qr-scanner` in your imports (`'@krislxx/k-qr-scanner/react'` and so on). The `<kqr-scanner>` element and its attributes keep their names. Version 0.2.0 also changed `ScanResult.format`; see the [changelog](CHANGELOG.md).
 
 ## Buy me a coffee
 

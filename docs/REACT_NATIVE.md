@@ -1,6 +1,6 @@
 # React Native
 
-`k-qr-scanner/react-native` brings the same scanner to iOS and Android apps, Expo included: the themes, auto-zoom, Micro QR and rMQR, the `accept` callback and album import.
+`@krislxx/k-qr-scanner/react-native` brings the same scanner to iOS and Android apps, Expo included: the themes, auto-zoom, Micro QR and rMQR, the `accept` callback and album import.
 
 - [Setup](#setup)
 - [Usage](#usage)
@@ -19,12 +19,12 @@ The engine is bundled with the component, about 0.8 MB (0.5 MB gzip). The scanne
 ## Setup
 
 ```bash
-npx k-qr-scanner init
+npx @krislxx/k-qr-scanner init
 ```
 
 In a React Native or Expo project, this one command:
 
-1. installs `k-qr-scanner` and `react-native-webview` (on Expo through `npx expo install`, so the WebView matches your SDK);
+1. installs `@krislxx/k-qr-scanner` and `react-native-webview` (on Expo through `npx expo install`, so the WebView matches your SDK);
 2. adds the camera permissions (see below);
 3. writes a starter component, `components/QrScanner`.
 
@@ -38,7 +38,7 @@ Then:
 
 | project | what `init` adds |
 | :--- | :--- |
-| Expo | `"plugins": ["k-qr-scanner"]` in `app.json`. The plugin writes both entries during prebuild. |
+| Expo | `"plugins": ["@krislxx/k-qr-scanner"]` in `app.json`. The plugin writes both entries during prebuild. |
 | bare iOS | `NSCameraUsageDescription` in `ios/<App>/Info.plist` |
 | bare Android | `<uses-permission android:name="android.permission.CAMERA" />` in `android/app/src/main/AndroidManifest.xml` |
 
@@ -48,17 +48,17 @@ Then:
 To set your own iOS permission text with Expo:
 
 ```json
-{ "expo": { "plugins": [["k-qr-scanner", { "cameraPermission": "Scan QR codes to pay" }]] } }
+{ "expo": { "plugins": [["@krislxx/k-qr-scanner", { "cameraPermission": "Scan QR codes to pay" }]] } }
 ```
 
 You don't need to write any permission code. On Android the component asks for the camera before it opens the scanner; on iOS the system asks once when the camera starts.
 
-`npx k-qr-scanner doctor` checks that the WebView is installed and that both permissions are in place.
+`npx @krislxx/k-qr-scanner doctor` checks that the WebView is installed and that both permissions are in place.
 
 ### Setting up by hand
 
 ```bash
-npm install k-qr-scanner react-native-webview
+npm install @krislxx/k-qr-scanner react-native-webview
 cd ios && pod install
 ```
 
@@ -69,7 +69,7 @@ Then add the two permission entries from the table above.
 ```tsx
 import { useRef, useState } from 'react';
 import { Button, Modal } from 'react-native';
-import { QRScanner, type QRScannerHandle } from 'k-qr-scanner/react-native';
+import { QRScanner, type QRScannerHandle } from '@krislxx/k-qr-scanner/react-native';
 
 export function PayScreen() {
   const [open, setOpen] = useState(false);
@@ -153,7 +153,7 @@ The defaults are tuned for scanning, so most apps never need `webViewProps`:
 ## Loading the scanner from a URL
 
 ```tsx
-<QRScanner scriptUrl="https://cdn.jsdelivr.net/npm/k-qr-scanner@0.2.0/dist/kqrcode.global.js" />
+<QRScanner scriptUrl="https://cdn.jsdelivr.net/npm/@krislxx/k-qr-scanner@0.2.0/dist/kqrcode.global.js" />
 ```
 
 This loads that version instead of the bundled one, which is useful to try a fix without an app update. `kqrcode.engine.js` must be in the same directory (it is on jsDelivr and unpkg), the phone needs network access, and the bundled copy stays in your app either way. Always pin a version.
@@ -174,7 +174,7 @@ This loads that version instead of the bundled one, which is useful to try a fix
 
 | problem | fix |
 | :--- | :--- |
-| the iOS app closes when the scanner opens | `NSCameraUsageDescription` is missing: run `npx k-qr-scanner init --no-install`, or add `"plugins": ["k-qr-scanner"]` on Expo, then rebuild |
+| the iOS app closes when the scanner opens | `NSCameraUsageDescription` is missing: run `npx @krislxx/k-qr-scanner init --no-install`, or add `"plugins": ["@krislxx/k-qr-scanner"]` on Expo, then rebuild |
 | `onError` with `permission-denied` | the user said no. On Android the system won't ask again after a second "no", so link to the app settings with `Linking.openSettings()` |
 | "Unable to resolve module react-native-webview" | install it (`npx expo install react-native-webview` on Expo), then rebuild or restart Metro |
 | a black screen and nothing happens | check `onError`, and look at the page in Safari or `chrome://inspect` in a development build |

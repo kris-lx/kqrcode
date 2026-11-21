@@ -9,7 +9,7 @@ Please open an issue with:
 - device, OS and browser **with versions**, e.g. "iPhone 13, iOS 17.5, Safari";
 - what you scanned: a printed code, a code on a screen, or a photo. Distance and lighting matter too;
 - what happened, ideally with a screenshot or a short video;
-- your framework and k-qr-scanner version (`npx k-qr-scanner doctor` prints most of this).
+- your framework and k-qr-scanner version (`npx @krislxx/k-qr-scanner doctor` prints most of this).
 
 A sample image of a code that fails to scan helps a lot. Remove anything sensitive first.
 
@@ -31,7 +31,7 @@ npm test
 | `src/autozoom.ts` | zoom decisions (pure logic, unit-tested) |
 | `src/sr.ts`, `src/sr-providers.ts` | super-resolution kernel and ONNX backend |
 | `src/react.ts`, `src/vue.ts`, `src/svelte.ts` | framework wrappers |
-| `src/cli.ts` | `npx k-qr-scanner` |
+| `src/cli.ts` | `npx @krislxx/k-qr-scanner` |
 | `bench/`, `scripts/` | benchmarks and end-to-end tests |
 
 See [docs/TESTING.md](docs/TESTING.md) for the end-to-end, cross-browser and device tests.

@@ -137,7 +137,7 @@ For another language, pass all labels in that language; any label you leave out 
 For a completely different interface, use the `QRScanner` class with your own `<video>` element. It does the camera, auto-zoom and decoding, and reports what it sees through events:
 
 ```ts
-import { QRScanner } from 'k-qr-scanner';
+import { QRScanner } from '@krislxx/k-qr-scanner';
 
 const scanner = new QRScanner({ video, superResolution: 'webgpu' });
 scanner.on('hint', ({ hint }) => drawBox(hint));      // a code is in view but can't be read yet
