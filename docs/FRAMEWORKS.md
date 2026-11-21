@@ -57,6 +57,10 @@ Svelte has no `noClose`; use the `<kqr-scanner>` tag with `no-close` instead. Ev
 ```tsx
 import { useState } from 'react';
 import { QRScanner } from 'k-qr-scanner/react';
+import { acceptEMV, parseEMV } from 'k-qr-scanner';
+
+// only intact LAO QR payment codes count; anything else shows the message and scanning goes on
+const lakOnly = acceptEMV({ currency: 'LAK', message: 'ນີ້ບໍ່ແມ່ນ QR ຈ່າຍເງິນ' });
 
 export function PayButton() {
   const [open, setOpen] = useState(false);
@@ -65,13 +69,21 @@ export function PayButton() {
       <button onClick={() => setOpen(true)}>Scan to pay</button>
       {open && (
         <QRScanner
+          theme="frame"
+          layout="bar"
           locale="lo"
           style={{ '--kqr-accent': '#e60012' }}
-          onScan={(r) => { setOpen(false); pay(r.text); }}
+          accept={lakOnly}
+          onScan={(r) => {
+            setOpen(false);
+            const emv = parseEMV(r.text)!;
+            pay({ to: emv.merchantName, amount: emv.amount, currency: emv.currencyCode });
+          }}
           onClose={() => setOpen(false)}
           onError={(e) => console.warn(e.code)}
         >
-          <button slot="actions-left" onClick={showMyCode}>My QR code</button>
+          <div slot="banner">ຮອງຮັບຄິວອາ / Support QR</div>
+          <button slot="actions-right" onClick={showMyCode}>My QR</button>
         </QRScanner>
       )}
     </>
@@ -102,19 +114,20 @@ export default function Page() {
 <script setup lang="ts">
 import { ref } from 'vue';
 import { QRScanner } from 'k-qr-scanner/vue';
-import type { ScanResult } from 'k-qr-scanner';
+import { acceptEMV, parseEMV, type ScanResult } from 'k-qr-scanner';
 
 const open = ref(false);
+const lakOnly = acceptEMV({ currency: 'LAK', message: 'ນີ້ບໍ່ແມ່ນ QR ຈ່າຍເງິນ' });
 function onScan(r: ScanResult) {
   open.value = false;
-  pay(r.text);
+  pay(parseEMV(r.text)!);
 }
 </script>
 
 <template>
   <button @click="open = true">Scan</button>
-  <QRScanner v-if="open" theme="alipay" locale="zh" @scan="onScan" @close="open = false">
-    <nav slot="footer"><b>扫码</b><span>识物</span><span>AR</span></nav>
+  <QRScanner v-if="open" theme="frame" layout="bar" locale="lo" :accept="lakOnly" @scan="onScan" @close="open = false">
+    <div slot="banner">ຮອງຮັບຄິວອາ / Support QR</div>
   </QRScanner>
 </template>
 ```
@@ -150,14 +163,18 @@ The Svelte entry is an action. Actions only run in the browser, so it is safe in
 ```svelte
 <script lang="ts">
   import { qrScanner } from 'k-qr-scanner/svelte';
+  import { acceptEMV, parseEMV } from 'k-qr-scanner';
   let open = $state(false);
+  const lakOnly = acceptEMV({ currency: 'LAK', message: 'ນີ້ບໍ່ແມ່ນ QR ຈ່າຍເງິນ' });
 </script>
 
 <button onclick={() => (open = true)}>Scan</button>
 
 {#if open}
-  <div use:qrScanner={{ locale: 'lo', onScan: (r) => { open = false; pay(r.text); }, onClose: () => (open = false) }}>
-    <button data-slot="actions-left">My QR code</button>
+  <div use:qrScanner={{ theme: 'frame', layout: 'bar', locale: 'lo', accept: lakOnly,
+    onScan: (r) => { open = false; pay(parseEMV(r.text)); }, onClose: () => (open = false) }}>
+    <div data-slot="banner">ຮອງຮັບຄິວອາ / Support QR</div>
+    <button data-slot="actions-right">My QR</button>
   </div>
 {/if}
 ```
@@ -179,9 +196,8 @@ Svelte 5 only allows `slot="…"` inside custom elements, so children of the act
 Import the package once to register the element, and allow custom elements in the component:
 
 ```ts
-import { Component, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
-import 'k-qr-scanner';
-import type { ScanResult } from 'k-qr-scanner';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, ElementRef, ViewChild } from '@angular/core';
+import { acceptEMV, parseEMV, type KQRScannerElement, type ScanResult } from 'k-qr-scanner';
 
 @Component({
   selector: 'app-scan',
@@ -190,20 +206,29 @@ import type { ScanResult } from 'k-qr-scanner';
   template: `
     <button (click)="open = true">Scan</button>
     @if (open) {
-      <kqr-scanner locale="lo" (scan)="onScan($any($event).detail)" (close)="open = false"></kqr-scanner>
+      <kqr-scanner #scanner theme="frame" layout="bar" locale="lo"
+        (scan)="onScan($any($event).detail)" (close)="open = false">
+        <div slot="banner">ຮອງຮັບຄິວອາ / Support QR</div>
+      </kqr-scanner>
     }
   `,
 })
 export class ScanComponent {
   open = false;
+
+  // properties such as accept and labels are set on the element itself
+  @ViewChild('scanner') set scanner(ref: ElementRef<KQRScannerElement> | undefined) {
+    if (ref) ref.nativeElement.accept = acceptEMV({ currency: 'LAK', message: 'ນີ້ບໍ່ແມ່ນ QR ຈ່າຍເງິນ' });
+  }
+
   onScan(r: ScanResult) {
     this.open = false;
-    console.log(r.text);
+    pay(parseEMV(r.text)!);
   }
 }
 ```
 
-The import is safe with Angular SSR; the element only activates in the browser. To set `accept` or `labels`, get the element with a template reference and `ViewChild`, then assign the property.
+Importing `k-qr-scanner` registers the element and is safe with Angular SSR; the element only activates in the browser.
 
 ## React Native and Expo
 
@@ -218,18 +243,27 @@ It needs `react-native-webview` and the camera permissions; `npx k-qr-scanner in
 ## Plain HTML
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/k-qr-scanner/dist/kqrcode.global.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/k-qr-scanner@0.3/dist/kqrcode.global.js"></script>
 
-<button id="scan">Scan</button>
+<button id="scan">Scan to pay</button>
 <script>
   document.getElementById('scan').onclick = async () => {
-    const { text } = await KQRCode.scanQR({ locale: 'lo' });
-    alert(text);
+    const { text } = await KQRCode.scanQR({
+      theme: 'frame',
+      layout: 'bar',
+      locale: 'lo',
+      accept: KQRCode.acceptEMV({ currency: 'LAK', message: 'ນີ້ບໍ່ແມ່ນ QR ຈ່າຍເງິນ' }),
+    });
+    const emv = KQRCode.parseEMV(text);
+    alert(`${emv.merchantName}: ${emv.amount} ${emv.currencyCode}`);
   };
 </script>
 ```
 
-The script build (20 kB gzip) defines the global `KQRCode` and registers `<kqr-scanner>`. It loads the engine from `kqrcode.engine.js` in the same directory when the scanner first opens. Pin a version in production, e.g. `k-qr-scanner@0.3.0`, or self-host `kqrcode.global.js`, `kqrcode.engine.js` and `kqrcode.jsqr.js` together.
+The script build (20 kB gzip) defines the global `KQRCode` with the same exports as the package (`scanQR`, `QRScanner`, `acceptEMV`, `parseEMV`, …) and registers `<kqr-scanner>`. It loads the engine from `kqrcode.engine.js` in the same directory when the scanner first opens.
+
+- **Keep the version in the URL.** `@0.3` follows 0.3.x; `@0.3.0` pins one release. jsDelivr caches a URL without a version for up to 7 days, so a new release can take that long to appear there.
+- **Self-hosting:** serve `kqrcode.global.js`, `kqrcode.engine.js` and `kqrcode.jsqr.js` from one directory as `text/javascript`, with CORS headers if they come from another origin.
 
 ## Content-Security-Policy
 

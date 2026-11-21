@@ -83,29 +83,42 @@ try {
 }
 ```
 
-No build step? Use the script tag:
+No build step? Use the script tag. It defines the global `KQRCode` with the same API:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/k-qr-scanner/dist/kqrcode.global.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/k-qr-scanner@0.3/dist/kqrcode.global.js"></script>
 
-<kqr-scanner locale="lo"></kqr-scanner>
+<kqr-scanner theme="frame" layout="bar" locale="lo" style="--kqr-accent: #e60012"></kqr-scanner>
 <script>
-  document.querySelector('kqr-scanner').addEventListener('scan', (e) => alert(e.detail.text));
+  const scanner = document.querySelector('kqr-scanner');
+  scanner.accept = KQRCode.acceptEMV({ currency: 'LAK', message: 'ນີ້ບໍ່ແມ່ນ QR ຈ່າຍເງິນ' });
+  scanner.addEventListener('scan', (e) => {
+    const emv = KQRCode.parseEMV(e.detail.text);
+    alert(`${emv.merchantName}: ${emv.amount} ${emv.currencyCode}`);
+  });
 </script>
 ```
+
+Keep the version in the URL (`@0.3` follows 0.3.x). jsDelivr caches a URL without a version for up to 7 days, so a new release can take that long to show up there.
 
 ## Frameworks
 
 Every entry point is safe to import during server-side rendering; the scanner only activates in the browser.
 
+The same payment scanner in each framework: a bottom-bar layout, only intact LAO QR payment codes (`acceptEMV`), and the merchant and amount read with `parseEMV`.
+
 **React / Next.js**: the wrapper ships with `'use client'`.
 
 ```tsx
 import { QRScanner } from 'k-qr-scanner/react';
+import { acceptEMV, parseEMV } from 'k-qr-scanner';
+
+const lakOnly = acceptEMV({ currency: 'LAK', message: 'ນີ້ບໍ່ແມ່ນ QR ຈ່າຍເງິນ' });
 
 {open && (
-  <QRScanner locale="lo" onScan={(r) => { setOpen(false); pay(r.text); }} onClose={() => setOpen(false)}>
-    <button slot="actions-left" onClick={showMyCode}>My QR code</button>
+  <QRScanner theme="frame" layout="bar" locale="lo" accept={lakOnly}
+    onScan={(r) => { setOpen(false); pay(parseEMV(r.text)!); }} onClose={() => setOpen(false)}>
+    <button slot="actions-right" onClick={showMyCode}>My QR</button>
   </QRScanner>
 )}
 ```
@@ -113,28 +126,31 @@ import { QRScanner } from 'k-qr-scanner/react';
 **Vue / Nuxt**: in Nuxt, render it inside `<ClientOnly>`.
 
 ```vue
-<QRScanner v-if="open" theme="alipay" locale="zh" @scan="onScan" @close="open = false" />
+<QRScanner v-if="open" theme="frame" layout="bar" locale="lo" :accept="lakOnly"
+  @scan="(r) => pay(parseEMV(r.text))" @close="open = false" />
 ```
 
 **Svelte / SvelteKit**: an action; children use `data-slot`.
 
 ```svelte
-<div use:qrScanner={{ locale: 'lo', onScan: (r) => pay(r.text), onClose: () => (open = false) }}></div>
+<div use:qrScanner={{ theme: 'frame', layout: 'bar', locale: 'lo', accept: lakOnly,
+  onScan: (r) => pay(parseEMV(r.text)), onClose: () => (open = false) }}></div>
 ```
 
-**Angular**: the custom element, with `CUSTOM_ELEMENTS_SCHEMA`.
+**Angular**: the custom element, with `CUSTOM_ELEMENTS_SCHEMA`; set `accept` on the element ([example](docs/FRAMEWORKS.md#angular)).
 
 ```html
-<kqr-scanner locale="lo" (scan)="onScan($any($event).detail)" (close)="open = false"></kqr-scanner>
+<kqr-scanner #scanner theme="frame" layout="bar" locale="lo" (scan)="onScan($any($event).detail)" (close)="open = false"></kqr-scanner>
 ```
 
 **React Native / Expo**: the same scanner, running in a WebView with the engine bundled, so it works offline and in Expo Go.
 
 ```tsx
-import { QRScanner } from 'k-qr-scanner/react-native';
+import { QRScanner, acceptEMV, parseEMV } from 'k-qr-scanner/react-native';
 
 <Modal visible={open} presentationStyle="fullScreen" onRequestClose={() => setOpen(false)}>
-  <QRScanner style={{ flex: 1 }} locale="lo" onScan={(r) => pay(r.text)} onClose={() => setOpen(false)} />
+  <QRScanner style={{ flex: 1 }} theme="frame" layout="bar" locale="lo" accept={lakOnly}
+    onScan={(r) => pay(parseEMV(r.text)!)} onClose={() => setOpen(false)} />
 </Modal>
 ```
 
