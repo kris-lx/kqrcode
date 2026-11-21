@@ -2,7 +2,7 @@
 
 How k-qr-scanner compares with jsQR, ZXing and the real WeChat engine, how the numbers were measured, and what they don't cover.
 
-> The latest numbers are generated into [`bench/results.md`](../bench/results.md) and the README table by `npm run bench`. The tables below are from the 0.1.0 run on 2026-11-19. The README table comes from a later run, so its numbers differ slightly.
+> The latest numbers are generated into [`bench/results.md`](../bench/results.md) by `npm run bench`. Decode rates below are from the 2026-11-21 run (version 0.3.0). The WeChat rows and all times are from the 2026-11-19 run on the laptop below, the only machine with the WeChat engine installed; decode rates don't depend on the machine.
 
 ## Setup
 
@@ -45,10 +45,10 @@ The module size is how many pixels one QR module covers; smaller means farther a
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | jsQR | 0% | 25% | 25% | 46% | 67% | 88% | **42%** |
 | ZXing-C++ (WASM) | 4% | 38% | 63% | 67% | 96% | 100% | **61%** |
-| k-qr-scanner | 8% | 42% | 63% | 67% | 96% | 100% | **63%** |
-| k-qr-scanner + WeChat SR (JS kernel) | 13% | 42% | 63% | 67% | 96% | 100% | **63%** |
-| k-qr-scanner + WeChat SR (ONNX Runtime) | 17% | 42% | 63% | 67% | 96% | 100% | **64%** |
-| WeChat (OpenCV C++) | **29%** | 42% | 50% | 63% | 88% | 100% | **62%** |
+| k-qr-scanner | 25% | 42% | 63% | 67% | 100% | 100% | **66%** |
+| k-qr-scanner + WeChat SR (JS kernel) | 25% | 42% | 63% | 67% | 100% | 100% | **66%** |
+| k-qr-scanner + WeChat SR (ONNX Runtime) | **38%** | **46%** | 63% | 67% | 100% | 100% | **69%** |
+| WeChat (OpenCV C++) | 29% | 42% | 50% | 63% | 88% | 100% | **62%** |
 
 ### Decode rate by condition
 
@@ -56,11 +56,13 @@ The module size is how many pixels one QR module covers; smaller means farther a
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | jsQR | 67% | 46% | 13% | 39% | 44% |
 | ZXing-C++ (WASM) | 85% | 67% | 31% | 63% | 60% |
-| k-qr-scanner | 88% | 69% | 31% | 64% | 61% |
-| k-qr-scanner + WeChat SR (ONNX Runtime) | 88% | 73% | 31% | 67% | 61% |
-| WeChat (OpenCV C++) | 85% | 73% | 27% | **71%** | 53% |
+| k-qr-scanner | 96% | 69% | 33% | 68% | 64% |
+| k-qr-scanner + WeChat SR (ONNX Runtime) | **96%** | **77%** | **33%** | **74%** | **64%** |
+| WeChat (OpenCV C++) | 85% | 73% | 27% | 71% | 53% |
 
 ### Time per 1280×720 frame (CPU, one thread, ms)
+
+From the 2026-11-19 run. The 2026-11-21 run on a desktop Ryzen 5 2600 gave 13.3 ms (p50) and 17.6 ms for a frame without a code, against 9.9 ms and 7.3 ms for ZXing alone on that machine: the same ratios as before.
 
 | engine | p50 | p95 | frame without a code (p50) | false positives |
 | :--- | :---: | :---: | :---: | :---: |
@@ -88,10 +90,21 @@ End to end: in Chrome with a fake camera, a scanner with `superResolution: 'webg
 
 ## What the numbers say
 
-1. **Overall accuracy matches WeChat's open-source engine**: 64 % against 62 %. k-qr-scanner does better on mid-range codes (2.5–4 px) and low contrast. WeChat is clearly better on the farthest codes (1.5 px: 29 % against 17 %) and on high contrast.
-2. **WeChat's lead on the farthest codes comes from its CNN detector, not from super-resolution.** `bench/diag.mts` crops each code at its known position and decodes the crop. There, upscaling 2× with super-resolution reads about as well as plain bilinear 2×: what fails is *finding* tiny blurred codes. The locator found 0 of 8 codes at 1.5–2 px with σ 0.8 blur. Super-resolution still adds a little when it is followed by a bilinear 2×, which is how k-qr-scanner uses it.
+1. **k-qr-scanner now reads more codes than WeChat's open-source engine in every bucket**: 69 % against 62 % overall, and 38 % against 29 % on the farthest codes (1.5 px). Until version 0.2.0, WeChat led on the farthest codes (29 % against 17 %).
+2. **The gap closed with a better crop, not a bigger model.** When the locator finds a code that the full-frame pass can't read, the engine decodes an upscaled crop around it. That crop used to be sized for an upright code, so a rotated code lost its corners. Sizing it for any rotation plus the quiet zone took the farthest codes from 17 % to 38 %. `bench/diag.mts` had already shown that WeChat's lead came from *finding* tiny codes rather than from super-resolution.
 3. **That detector is expensive on frames with no code.** WeChat spends about 290 ms on each empty 720p frame on the CPU; k-qr-scanner spends 17–37 ms (ZXing alone: 5 ms). A live camera mostly sees frames without a code, so this decides battery use and responsiveness.
 4. **In the browser, run super-resolution on WebGPU or WebAssembly, not the JS kernel.** ONNX Runtime Web is 12–25× faster. That is why the JS kernel only gets regions up to 112 px, and ONNX Runtime up to 240 px.
+
+## Codes filmed off a screen
+
+A display filmed up close shows its pixel grid, which beats against the camera sensor as moiré and breaks binarization. This set doesn't include it, so a unit test does (`test/engine.test.ts`): a 201-character EMV payment code (QR version 9) with a simulated pixel grid. With strong moiré, before and after the screen pass in 0.3.0:
+
+| module size | 2.5 px | 3 px | 4 px | 5 px |
+| :--- | :---: | :---: | :---: | :---: |
+| before | 0/8 | 2/8 | 2/8 | 6/8 |
+| after | 5/8 | 8/8 | 8/8 | 8/8 |
+
+The engine scores each frame's fine high-frequency energy; real scenes score about 5–10 and filmed screens 20 or more. Above 18, or when a located code fails, it decodes a lightly smoothed copy of the frame. Frames without a code and without moiré cost nothing extra.
 
 ## Limits
 

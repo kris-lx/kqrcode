@@ -8,3 +8,14 @@ bench/browser.html
 bench/e2e-sr.html
 *.tgz
 src/rn-runtime.generated.ts
+
+# OS / editor / tooling junk
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*
+coverage/
+.vscode/
+.idea/
+*.local

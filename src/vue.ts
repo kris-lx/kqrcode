@@ -28,6 +28,7 @@ export const QRScanner = defineComponent({
     success: String as PropType<'dot' | 'box' | 'none'>,
     torch: String as PropType<'auto' | 'always' | 'never'>,
     zoomControl: String as PropType<'slider' | 'none'>,
+    layout: String as PropType<'default' | 'bar'>,
     noClose: Boolean,
     /** QR-family members to read. Default: all – 'qr_code', 'micro_qr_code', 'rm_qr_code'. */
     formats: Array as PropType<QRFormat[]>,
@@ -53,7 +54,7 @@ export const QRScanner = defineComponent({
     return () => {
       const a: Record<string, unknown> = {
         ref: el, facing: props.facing, locale: props.locale, 'max-zoom': props.maxZoom, 'super-resolution': props.superResolution,
-        theme: props.theme, heading: props.heading, success: props.success, torch: props.torch, 'zoom-control': props.zoomControl,
+        theme: props.theme, heading: props.heading, success: props.success, torch: props.torch, 'zoom-control': props.zoomControl, layout: props.layout,
         formats: props.formats?.join(' '),
         onScan: (e: CustomEvent<ScanResult>) => emit('scan', e.detail),
         onReject: (e: CustomEvent<{ result: ScanResult; message?: string }>) => emit('reject', e.detail.result, e.detail.message),

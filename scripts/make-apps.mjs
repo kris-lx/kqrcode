@@ -4,7 +4,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = process.argv[2];
-const TGZ = 'file:../k-qr-scanner-0.2.0.tgz';
+const TGZ = 'file:../k-qr-scanner-0.3.0.tgz';
 const w = (app, file, content) => {
   const f = join(ROOT, app, file);
   mkdirSync(join(f, '..'), { recursive: true });

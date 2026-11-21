@@ -456,6 +456,39 @@ function cropScale(img: AnalyzeInput, rx: number, ry: number, rw: number, rh: nu
   return { data: out, width: ow, height: oh };
 }
 
+/**
+ * Fine high-frequency energy (mean |1-D Laplacian| on every 8th row). Camera frames of real scenes score
+ * about 5–10; a display filmed up close shows its pixel grid as moiré and scores 20 and more.
+ */
+export function moire(gray: Uint8Array, w: number, h: number): number {
+  let s = 0, n = 0;
+  for (let y = 4; y < h; y += 8) {
+    const row = y * w;
+    for (let x = row + 1, end = row + w - 1; x < end; x++) { s += Math.abs(2 * gray[x] - gray[x - 1] - gray[x + 1]); n++; }
+  }
+  return n ? s / n : 0;
+}
+
+/** 3×3 box filter on the luminance (written to R, G and B), for moiré from screens. */
+function smooth(img: AnalyzeInput): AnalyzeInput {
+  const { width: w, height: h, data } = img;
+  const g = new Uint8ClampedArray(w * h);
+  for (let i = 0, j = 0; i < g.length; i++, j += 4) g[i] = (data[j] * 77 + data[j + 1] * 150 + data[j + 2] * 29) >> 8;
+  const out = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) {
+    const ya = y > 0 ? y - 1 : y, yb = y < h - 1 ? y + 1 : y;
+    for (let x = 0; x < w; x++) {
+      const xa = x > 0 ? x - 1 : x, xb = x < w - 1 ? x + 1 : x;
+      const v = (g[ya * w + xa] + g[ya * w + x] + g[ya * w + xb] + g[y * w + xa] + g[y * w + x] + g[y * w + xb]
+        + g[yb * w + xa] + g[yb * w + x] + g[yb * w + xb]) / 9;
+      const o = (y * w + x) * 4;
+      out[o] = out[o + 1] = out[o + 2] = v;
+      out[o + 3] = 255;
+    }
+  }
+  return { data: out, width: w, height: h };
+}
+
 /** ×2 super-resolution hook (WeChat CNN). Output may be (2h-1)×(2w-1). */
 export type SuperRes = ((img: AnalyzeInput) => Promise<AnalyzeInput>) & {
   /** largest ROI side worth sending to this backend (JS kernel is ~10× slower than ONNX/WebGPU) */
@@ -479,8 +512,8 @@ async function decodeWithSR(
 async function decodeRoi(
   img: AnalyzeInput, hint: QRHint, invert: boolean, dec: Decoder, sr?: SuperRes | null, formats?: readonly QRFormat[],
 ): Promise<AnalyzeResult | null> {
-  const pad = hint.full ? 0.3 : 0.45;
-  const side = hint.size * (1 + pad);
+  // room for any rotation (a code turned 45° needs √2 × its side) plus a 4-module quiet zone
+  const side = hint.size * (hint.full ? 1.42 : 1.6) + 8 * hint.module;
   const x0 = Math.max(0, Math.floor(hint.cx - side / 2));
   const y0 = Math.max(0, Math.floor(hint.cy - side / 2));
   const x1 = Math.min(img.width, Math.ceil(hint.cx + side / 2));
@@ -569,6 +602,14 @@ export async function analyze(img: AnalyzeInput, opts: AnalyzeOptions, dec: Deco
     const r = await decodeRoi(img, c, invert, dec, srBudget, opts.formats);
     if (r) return { ...r, hint: c, luma };
     if (srBudget && c.module < 4.5) srBudget = null;
+  }
+
+  // 4) codes on a screen: the display's pixel grid beats against the camera sensor (moiré) and breaks
+  //    binarization. A light low-pass filter removes it while modules of ≥ 2.5 px survive. Runs only when
+  //    a code was located but not read (or on the periodic thorough pass), so empty frames cost nothing.
+  if ((!dec.slow || opts.thorough) && (opts.thorough || cands.some((c) => c.module >= 2.5) || moire(gray, img.width, img.height) > 18)) {
+    const soft = await dec.decode(smooth(img), invert, opts.formats);
+    if (soft) return fromDecoded(soft, luma);
   }
   return { hint: hint ?? cands[0] ?? null, luma };
 }

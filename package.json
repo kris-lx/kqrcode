@@ -1,6 +1,6 @@
 {
   "name": "k-qr-scanner",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Fast full-screen QR code scanner for the web – scans anywhere in view, any angle, long range with auto-zoom. React, React Native, Vue, Svelte, Angular, plain HTML.",
   "author": "kris",
   "repository": {
@@ -69,7 +69,6 @@
     "app.plugin.js",
     "app.plugin.d.ts",
     "models/wechat_sr.onnx",
-    "docs/*.md",
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
@@ -79,7 +78,7 @@
     "llms.txt"
   ],
   "scripts": {
-    "build": "node scripts/build.mjs && tsc -p tsconfig.build.json",
+    "build": "node scripts/build.mjs && tsc -p tsconfig.build.json && node scripts/prune-types.mjs",
     "test": "tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
     "bench": "tsx bench/run.mts && tsx bench/update-readme.mts",

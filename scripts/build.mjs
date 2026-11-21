@@ -27,16 +27,36 @@ if (process.argv.includes('--worker-only')) process.exit(0);
 // 2) library bundles
 rmSync(p('dist'), { recursive: true, force: true });
 mkdirSync(p('dist'), { recursive: true });
-const common = { bundle: true, minify: true, sourcemap: true, sourcesContent: false, target: 'es2020', platform: 'browser', external: ['react', 'vue'] };
+// No source maps in the package: they doubled the download for code nobody steps through.
+const common = { bundle: true, minify: true, sourcemap: false, target: 'es2020', platform: 'browser', external: ['react', 'vue'] };
 const ENGINE = /worker-source\.generated$/;
 const JSQR = /decoder-jsqr$/; // main-thread fallback, only needed when workers/WASM are blocked
 const entries = { index: p('src/index.ts'), react: p('src/react.ts'), vue: p('src/vue.ts'), svelte: p('src/svelte.ts'), sr: p('src/sr-entry.ts') };
 
-// ESM: code-split → the engine is its own chunk, fetched only when a scanner starts
+// One engine file and one jsQR file serve every build (ESM, CJS, <script>, React Native). Both are
+// ES modules: dist/kqrcode.engine.js exports the worker source, dist/kqrcode.jsqr.js the fallback.
+writeFileSync(p('dist/kqrcode.engine.js'), `export default ${JSON.stringify(workerJs)};\n`);
+await build({ ...common, entryPoints: [p('src/decoder-jsqr.ts')], format: 'esm', outfile: p('dist/kqrcode.jsqr.js') });
+
+// ESM: code-split; the engine and jsQR stay external and are imported lazily when a scanner starts
+const SHARED = { __KQR_ENGINE__: 'kqrcode.engine.js', __KQR_JSQR__: 'kqrcode.jsqr.js' };
+const esmShared = { name: 'esm-shared', setup(b) {
+  b.onResolve({ filter: ENGINE }, () => ({ path: '__KQR_ENGINE__', external: true }));
+  b.onResolve({ filter: JSQR }, () => ({ path: '__KQR_JSQR__', external: true }));
+} };
 await build({
-  ...common, entryPoints: entries, format: 'esm', splitting: true, outdir: p('dist'),
+  ...common, plugins: [esmShared], entryPoints: entries, format: 'esm', splitting: true, outdir: p('dist'),
   entryNames: '[name]', chunkNames: 'chunks/[name]-[hash]',
 });
+// point the placeholders at the shared files, relative to wherever esbuild put the import
+for (const dir of ['dist', 'dist/chunks']) {
+  for (const f of readdirSync(p(dir)).filter((x) => x.endsWith('.js') && !x.startsWith('kqrcode.'))) {
+    const file = p(`${dir}/${f}`);
+    let code = readFileSync(file, 'utf8');
+    for (const [key, target] of Object.entries(SHARED)) code = code.replaceAll(`"${key}"`, JSON.stringify((dir === 'dist' ? './' : '../') + target));
+    writeFileSync(file, code);
+  }
+}
 // Next.js App Router: the React wrapper is a client component
 {
   const f = p('dist/react.js');
@@ -45,12 +65,11 @@ await build({
 
 // CJS: wrappers re-use index.cjs, and index.cjs loads the engine from one shared file on demand
 const shareIndex = { name: 'share-index', setup(b) { b.onResolve({ filter: /^\.\/(element|scanner)$/ }, () => ({ path: 'k-qr-scanner', external: true })); } };
+// import() is kept in the CJS output, so CJS loads the same ES-module engine and jsQR files
 const cjsEngine = { name: 'cjs-engine', setup(b) {
-  b.onResolve({ filter: ENGINE }, () => ({ path: './engine.cjs', external: true }));
-  b.onResolve({ filter: JSQR }, () => ({ path: './jsqr.cjs', external: true }));
+  b.onResolve({ filter: ENGINE }, () => ({ path: './kqrcode.engine.js', external: true }));
+  b.onResolve({ filter: JSQR }, () => ({ path: './kqrcode.jsqr.js', external: true }));
 } };
-await build({ ...common, entryPoints: [p('src/decoder-jsqr.ts')], format: 'cjs', outfile: p('dist/jsqr.cjs') });
-writeFileSync(p('dist/engine.cjs'), `"use strict";Object.defineProperty(exports,"__esModule",{value:true});exports.default=${JSON.stringify(workerJs)};\n`);
 for (const [name, entry] of Object.entries(entries)) {
   const banner = name === 'react' ? { js: "'use client';" } : undefined;
   const plugins = ['react', 'vue', 'svelte'].includes(name) ? [shareIndex] : [cjsEngine];
@@ -80,8 +99,8 @@ const remoteEngine = {
     }));
     b.onLoad({ filter: /^engine$/, namespace: 'kqr-remote' }, () => ({
       loader: 'js',
-      contents: `export default fetch(new URL('kqrcode.engine.js', (typeof __KQR_BASE__ !== 'undefined' && __KQR_BASE__) || location.href))
-        .then((r) => { if (!r.ok) throw new Error('kqrcode: cannot load kqrcode.engine.js (' + r.status + ')'); return r.text(); });`,
+      // the shared ES-module engine next to this file (default export: the worker source)
+      contents: `export default import(new URL('kqrcode.engine.js', (typeof __KQR_BASE__ !== 'undefined' && __KQR_BASE__) || location.href).href).then((m) => m.default);`,
     }));
   },
 };
@@ -91,14 +110,17 @@ await build({
   banner: { js: 'var __KQR_BASE__=typeof document!=="undefined"&&document.currentScript?document.currentScript.src:void 0;' },
   outfile: p('dist/kqrcode.global.js'),
 });
-writeFileSync(p('dist/kqrcode.engine.js'), workerJs);
-await build({ ...common, entryPoints: [p('src/decoder-jsqr.ts')], format: 'esm', outfile: p('dist/kqrcode.jsqr.js') });
 
-// 4) React Native: the scanner runs in a react-native-webview. The page script is fully
-//    self-contained (engine + jsQR fallback inlined) so apps work offline and need no assets.
+// 4) React Native: the scanner runs in a react-native-webview and works offline. The page gets the
+//    runtime (UI + jsQR fallback) plus the engine source, which Metro bundles from the shared
+//    dist/kqrcode.engine.js – one copy in the package, none fetched at run time.
 {
+  const pageEngine = { name: 'page-engine', setup(b) {
+    b.onResolve({ filter: ENGINE }, () => ({ path: 'engine', namespace: 'kqr-page' }));
+    b.onLoad({ filter: /^engine$/, namespace: 'kqr-page' }, () => ({ loader: 'js', contents: 'export default window.__KQR_ENGINE__;' }));
+  } };
   const rt = await build({
-    ...common, sourcemap: false, entryPoints: [p('src/index.ts')], format: 'iife', globalName: 'KQRCode', write: false,
+    ...common, plugins: [pageEngine], entryPoints: [p('src/index.ts')], format: 'iife', globalName: 'KQRCode', write: false,
   });
   writeFileSync(
     p('src/rn-runtime.generated.ts'),
@@ -109,7 +131,10 @@ await build({ ...common, entryPoints: [p('src/decoder-jsqr.ts')], format: 'esm',
   mkdirSync(p('dist/rn'), { recursive: true });
   writeFileSync(p('dist/rn/package.json'), '{ "type": "commonjs" }\n');
   writeFileSync(p('dist/rn/runtime.js'), `module.exports=${JSON.stringify(rt.outputFiles[0].text)};\n`);
-  const sharedRuntime = { name: 'rn-runtime', setup(b) { b.onResolve({ filter: /rn-runtime\.generated$/ }, () => ({ path: './runtime.js', external: true })); } };
+  const sharedRuntime = { name: 'rn-runtime', setup(b) {
+    b.onResolve({ filter: /rn-runtime\.generated$/ }, () => ({ path: './runtime.js', external: true }));
+    b.onResolve({ filter: ENGINE }, () => ({ path: '../kqrcode.engine.js', external: true }));
+  } };
   await build({
     ...common, plugins: [sharedRuntime], entryPoints: [p('src/react-native.ts')], format: 'cjs', outfile: p('dist/rn/index.js'),
     external: ['react', 'react-native', 'react-native-webview'],

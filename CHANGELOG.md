@@ -4,6 +4,26 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.3.0] – 2026-11-21
+
+### Added
+
+- **Payment QR codes (EMV)**: `parseEMV()` reads LAO QR, PromptPay, VietQR, DuitNow, QRIS, UnionPay and other EMVCo merchant codes into fields (merchant, amount, currency, accounts, bill number…) and checks the CRC. `acceptEMV({ currency, country, accounts, dynamicOnly, message, check })` is a ready-made `accept` callback that lets only intact payment codes through. `emvCRC()` computes the checksum. Exported from the main entry and from `k-qr-scanner/react-native`; tree-shakeable.
+- **`layout="bar"`** (`layout` prop and option everywhere): flashlight on the left, a large album button in the middle and your own button on the right, in one row, as in many banking apps.
+- Slots `banner` (under the top bar, e.g. a "supported QR" strip) and `actions-center`; part `banner`.
+- **Capacitor**: `npx k-qr-scanner init` and `doctor` add and check the camera permissions in the native iOS and Android projects. New guide `docs/MOBILE.md` for PWAs, Capacitor, native `WKWebView` and Android `WebView`, and Flutter.
+- CSS variables `--kqr-frame-border` and `--kqr-gallery-bg`, `--kqr-gallery-size`, `--kqr-gallery-radius`. `--kqr-corner-width: 0` hides the frame corners.
+
+### Changed
+
+- **Package 2.4 MB → 750 kB** (unpacked 4.4 → 1.4 MB, 89 → 50 files). The ESM, CJS, `<script>` and React Native builds now share one engine file and one jsQR file (`kqrcode.engine.js` and `kqrcode.jsqr.js`, both ES modules loaded with `import()`) instead of four and three copies; source maps and internal type files are no longer published. Apps still get the engine as a separate, lazily loaded chunk.
+- Self-hosted script builds: `kqrcode.engine.js` is now an ES module, so serve it as `text/javascript`, with CORS headers when it comes from another origin.
+
+### Improved
+
+- **Codes filmed off a screen**: the engine recognizes the moiré of a display's pixel grid and decodes a smoothed copy of the frame. With strong moiré, a dense payment code at 3–4 px per module went from 2/8 to 8/8 frames.
+- **Farthest and rotated codes**: the crop around a located code is now sized for any rotation plus the quiet zone; it used to cut the corners off rotated codes. Codes at 1.5 px per module: 17 % → 38 % (WeChat's open-source engine: 29 %); all frames: 65 % → 69 %.
+
 ## [0.2.0] – 2026-11-21
 
 ### Changed
@@ -52,6 +72,7 @@ First public release.
 - `npx kqr-scanner init` and `npx kqr-scanner doctor` CLI.
 - English, Lao and Chinese labels.
 
-[Unreleased]: https://github.com/kris-lx/kqrcode/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/kris-lx/kqrcode/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/kris-lx/kqrcode/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kris-lx/kqrcode/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kris-lx/kqrcode/releases/tag/v0.1.0

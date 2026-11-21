@@ -34,6 +34,7 @@ Attributes become camelCase props in the wrappers:
 | `inline` | `inline` | off: full screen |
 | `success`, `torch` | `success`, `torch` | `dot`, `auto` |
 | `zoom-control` | `zoomControl` | `none` |
+| `layout` | `layout` | `default` (`bar`: bottom-bar layout) |
 | `max-zoom` | `maxZoom` | `8` |
 | `super-resolution` | `superResolution` | `js` |
 | `formats` | `formats` (an array) | all |
@@ -212,7 +213,7 @@ import { QRScanner } from 'k-qr-scanner/react-native';
 <QRScanner style={{ flex: 1 }} locale="lo" onScan={(r) => pay(r.text)} onClose={() => setOpen(false)} />
 ```
 
-It needs `react-native-webview` and the camera permissions; `npx k-qr-scanner init` sets up both. Everything else is in [REACT_NATIVE.md](REACT_NATIVE.md).
+It needs `react-native-webview` and the camera permissions; `npx k-qr-scanner init` sets up both. Everything else is in [REACT_NATIVE.md](REACT_NATIVE.md). For Capacitor, native web views and Flutter, see [MOBILE.md](MOBILE.md).
 
 ## Plain HTML
 
@@ -228,7 +229,7 @@ It needs `react-native-webview` and the camera permissions; `npx k-qr-scanner in
 </script>
 ```
 
-The script build (17 kB gzip) defines the global `KQRCode` and registers `<kqr-scanner>`. It loads the engine from `kqrcode.engine.js` in the same directory when the scanner first opens. Pin a version in production, e.g. `k-qr-scanner@0.2.0`, or self-host `kqrcode.global.js`, `kqrcode.engine.js` and `kqrcode.jsqr.js` together.
+The script build (20 kB gzip) defines the global `KQRCode` and registers `<kqr-scanner>`. It loads the engine from `kqrcode.engine.js` in the same directory when the scanner first opens. Pin a version in production, e.g. `k-qr-scanner@0.3.0`, or self-host `kqrcode.global.js`, `kqrcode.engine.js` and `kqrcode.jsqr.js` together.
 
 ## Content-Security-Policy
 

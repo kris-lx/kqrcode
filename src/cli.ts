@@ -304,7 +304,9 @@ function init(a: Args): number {
   }
 
   // 3) camera permission entries (React Native)
-  if (fw === 'react-native') nativeSetup(a.cwd, !!deps.expo, a.dryRun);
+  // Capacitor wraps a web app in native iOS/Android projects: same permission entries
+  const capacitor = fw !== 'react-native' && !!deps['@capacitor/core'];
+  if (fw === 'react-native' || capacitor) nativeSetup(a.cwd, fw === 'react-native' && !!deps.expo, a.dryRun);
 
   // 4) next steps
   log('');
@@ -314,6 +316,8 @@ function init(a: Args): number {
     if (deps.expo) log(`  Expo Go works as is. Development / EAS builds: ${dim('npx expo prebuild')} picks up the plugin.`);
     else log(`  iOS:  ${dim('cd ios && pod install')}, then rebuild the app.`);
     log(`  Guide: ${cyan('https://github.com/kris-lx/kqrcode/blob/main/docs/REACT_NATIVE.md')}`);
+  } else if (capacitor) {
+    log(`  Capacitor: ${dim('npx cap sync')}, then rebuild the app. Guide: ${cyan('https://github.com/kris-lx/kqrcode/blob/main/docs/MOBILE.md#capacitor')}`);
   } else log(`  Camera access needs ${bold('HTTPS')} (localhost is fine during development).`);
   log(`  Themes, slots and options: ${cyan('https://github.com/kris-lx/kqrcode#readme')}`);
   return 0;
@@ -324,9 +328,14 @@ const ANDROID_CAMERA = '<uses-permission android:name="android.permission.CAMERA
 
 /** Native Info.plist files of a bare React Native app (ios/<App>/Info.plist). */
 function plistFiles(cwd: string): string[] {
-  try {
-    return readdirSync(join(cwd, 'ios')).map((x) => `ios/${x}/Info.plist`).filter((f) => existsSync(join(cwd, f)));
-  } catch { return []; }
+  // React Native: ios/<App>/Info.plist · Capacitor: ios/App/App/Info.plist
+  const out: string[] = [];
+  const dirs = (d: string) => { try { return readdirSync(join(cwd, d), { withFileTypes: true }).filter((e) => e.isDirectory() && !/^(Pods|build|DerivedData)$|\.(xcodeproj|xcworkspace|xcassets)$/.test(e.name)).map((e) => `${d}/${e.name}`); } catch { return []; } };
+  for (const d of dirs('ios')) {
+    if (existsSync(join(cwd, d, 'Info.plist'))) out.push(`${d}/Info.plist`);
+    for (const dd of dirs(d)) if (existsSync(join(cwd, dd, 'Info.plist'))) out.push(`${dd}/Info.plist`);
+  }
+  return out;
 }
 
 /** Expo app.json that lists the k-qr-scanner config plugin. */
@@ -405,9 +414,11 @@ function doctor(a: Args): number {
   if (fw === 'vue' || fw === 'nuxt') {
     warn('If you use the raw <kqr-scanner> tag in Vue templates (instead of k-qr-scanner/vue), add it to compilerOptions.isCustomElement');
   }
-  if (fw === 'react-native') {
-    if (!d['react-native-webview']) bad('react-native-webview is missing – run: ' + (d.expo ? 'npx expo install react-native-webview' : 'npm install react-native-webview'));
-    else ok('react-native-webview installed');
+  const capacitor = fw !== 'react-native' && !!d['@capacitor/core'];
+  if (capacitor) ok('Capacitor app: checking the native camera permissions');
+  if (fw === 'react-native' || capacitor) {
+    if (fw === 'react-native' && !d['react-native-webview']) bad('react-native-webview is missing – run: ' + (d.expo ? 'npx expo install react-native-webview' : 'npm install react-native-webview'));
+    else if (fw === 'react-native') ok('react-native-webview installed');
     const read = (f: string) => (existsSync(join(a.cwd, f)) ? readFileSync(join(a.cwd, f), 'utf8') : null);
     const appJson = read('app.json') ?? read('app.config.js') ?? read('app.config.ts');
     const plists = plistFiles(a.cwd).map((f) => read(f)!);

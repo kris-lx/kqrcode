@@ -87,8 +87,9 @@ export const THEME_VARS = {
   '--kqr-frame-size': 'frame side, default min(70vmin, 300px)',
   '--kqr-frame-top': 'vertical centre of the frame, default 42%',
   '--kqr-frame-radius': 'default 14px',
+  '--kqr-frame-border': 'border around the frame, e.g. 1px solid #fff9; default none',
   '--kqr-corner-size': 'default 24px',
-  '--kqr-corner-width': 'default 4px',
+  '--kqr-corner-width': 'default 4px (0 hides the corners)',
   '--kqr-scan-duration': 'one sweep, default 2.4s',
   '--kqr-line-width': 'scan line thickness, default 3px',
   '--kqr-text': 'text colour, default #fff',
@@ -96,6 +97,9 @@ export const THEME_VARS = {
   '--kqr-button-bg': 'round button background, default rgba(40,40,40,.55)',
   '--kqr-button-size': 'default 52px',
   '--kqr-bg': 'background behind the video, default #000',
+  '--kqr-gallery-bg': 'album button background in layout="bar", default: accent',
+  '--kqr-gallery-size': 'album button size in layout="bar", default 68px',
+  '--kqr-gallery-radius': 'album button corner radius in layout="bar", default 22px',
 } as const;
 
 const ICON = {
@@ -140,7 +144,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 
 /* ---------- frame (frame / grid) ---------- */
 .frame{position:absolute;left:50%;top:var(--_ft);width:var(--_fs);aspect-ratio:1;transform:translate(-50%,-50%);
-  border-radius:var(--_fr);display:none;overflow:hidden}
+  border-radius:var(--_fr);display:none;overflow:hidden;border:var(--kqr-frame-border,none)}
 :host([theme=frame]) .frame,:host([theme=grid]) .frame{display:block}
 :host([theme=frame]) .frame{box-shadow:0 0 0 100vmax var(--kqr-mask,rgba(0,0,0,.45));overflow:visible}
 .frame i{position:absolute;width:var(--_cs);height:var(--_cs);border:0 solid var(--_accent);z-index:1}
@@ -194,8 +198,21 @@ button:focus-visible{outline:2px solid currentColor;outline-offset:3px;border-ra
 .torch{flex-direction:column;gap:4px;font-size:12px;padding:6px 10px}
 .torch .ic{width:44px;height:44px;background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none}
 .torch.on{color:var(--_accent)}
-.actions{display:flex;align-items:flex-end;justify-content:space-between;width:100%}
-.actions:empty{display:none}
+.actions{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;width:100%}
+.cl{justify-self:start;display:flex;gap:12px}.cc{justify-self:center;display:flex;gap:12px}.cr{justify-self:end;display:flex;gap:12px}
+.banner{position:absolute;left:0;right:0;top:calc(max(12px,env(safe-area-inset-top)) + 50px);display:flex;flex-direction:column;
+  align-items:center;gap:8px;padding:0 16px;text-align:center;pointer-events:none}
+.banner>*{pointer-events:auto}
+/* layout="bar": one row – flashlight · big album button · your button */
+:host([layout=bar]) .actions{align-items:center}
+:host([layout=bar]) .torch,:host([layout=bar]) .gallery{padding:0}
+:host([layout=bar]) .torch .t,:host([layout=bar]) .gallery .t{display:none}
+:host([layout=bar]) .torch .ic{width:var(--_bs);height:var(--_bs)}
+:host([layout=bar]) .torch .ic svg{width:30px;height:30px}
+:host([layout=bar]) .gallery .ic{width:var(--kqr-gallery-size,68px);height:var(--kqr-gallery-size,68px);
+  border-radius:var(--kqr-gallery-radius,22px);background:var(--kqr-gallery-bg,var(--_accent));
+  -webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+:host([layout=bar]) .gallery .ic svg{width:32px;height:32px}
 .zoom{display:flex;align-items:center;gap:10px;width:min(86vw,340px)}
 .zoom button .ic{width:30px;height:30px}.zoom button .ic svg{width:16px;height:16px}
 .zoom input{flex:1;accent-color:var(--_accent);height:28px;margin:0}
@@ -214,7 +231,7 @@ input[type=file]{display:none}
 const Base: typeof HTMLElement = (typeof HTMLElement === 'undefined' ? class {} : HTMLElement) as typeof HTMLElement;
 
 export class KQRScannerElement extends Base {
-  static observedAttributes = ['locale', 'heading', 'torch', 'zoom-control', 'formats'];
+  static observedAttributes = ['locale', 'heading', 'torch', 'zoom-control', 'formats', 'layout'];
 
   /** Override any label (merged over the current locale). */
   labels: Partial<ScannerLabels> = {};
@@ -282,6 +299,7 @@ export class KQRScannerElement extends Base {
         <slot name="top-center"><div class="title" part="title"></div></slot>
         <div class="r"><slot name="top-right"></slot></div>
       </div>
+      <div class="banner" part="banner"><slot name="banner"></slot></div>
       <div class="bottom" part="bottom">
         <slot name="hint"><div class="msg" part="hint" role="status" aria-live="polite"></div></slot>
         <button class="torch" part="torch" hidden><span class="ic">${ICON.torch}</span><span class="t"></span></button>
@@ -292,8 +310,9 @@ export class KQRScannerElement extends Base {
           <span class="zl">1.0×</span>
         </div>
         <div class="actions" part="actions">
-          <slot name="actions-left"></slot>
-          <slot name="actions-right"><button class="gallery" part="gallery"><span class="ic">${ICON.image}</span><span class="t"></span></button></slot>
+          <div class="cell cl"><slot name="actions-left"></slot></div>
+          <div class="cell cc"><slot name="actions-center"></slot></div>
+          <div class="cell cr"><slot name="actions-right"><button class="gallery" part="gallery"><span class="ic">${ICON.image}</span><span class="t"></span></button></slot></div>
         </div>
         <slot name="footer"></slot>
       </div>
@@ -308,6 +327,7 @@ export class KQRScannerElement extends Base {
     this.video = q('video') as HTMLVideoElement;
     this.canvas = q('canvas') as HTMLCanvasElement;
     this.applyLabels();
+    this.placeButtons();
     this.$.gallery.hidden = this.flag('no-gallery');
     this.$.close.hidden = this.flag('no-close');
 
@@ -336,6 +356,7 @@ export class KQRScannerElement extends Base {
     if (!this.root) return;
     if (name === 'locale' || name === 'heading') this.applyLabels();
     if (name === 'torch') this.updateTorchButton();
+    if (name === 'layout') { this.placeButtons(); this.updateTorchButton(); }
     if (name === 'formats') this.scanner?.setFormats(this.formats);
     if (name === 'zoom-control' && this.scanner) this.onZoom({ zoom: this.scanner.zoom, min: this.scanner.zoomMin, max: this.scanner.zoomMax, auto: false, digital: this.scanner.isDigitalZoom });
   }
@@ -499,10 +520,27 @@ export class KQRScannerElement extends Base {
   }
 
   /** torch="auto" (default): appear when it is dark, like WeChat · "always" · "never" */
+  /**
+   * layout="bar": flashlight in the left cell, album as the big center button, slot actions-right free.
+   * Default layout: flashlight above the actions, album on the right. The built-in buttons are moved
+   * into the fallback content of the matching slot, so a slotted element still replaces them.
+   */
+  private placeButtons() {
+    const slot = (n: string) => this.root.querySelector(`slot[name=${n}]`) as HTMLSlotElement;
+    if (this.getAttribute('layout') === 'bar') {
+      slot('actions-left').append(this.$.torch);
+      slot('actions-center').append(this.$.gallery);
+    } else {
+      this.$.zoom.before(this.$.torch);
+      slot('actions-right').append(this.$.gallery);
+    }
+  }
+
   private updateTorchButton() {
     const mode = this.flag('no-torch') ? 'never' : this.attr('torch', 'auto');
     const can = !!this.scanner?.canTorch;
-    const show = can && (mode === 'always' || (mode === 'auto' && (this.dark || this.torchOn)));
+    const bar = this.getAttribute('layout') === 'bar';
+    const show = can && (mode === 'always' || (mode === 'auto' && (bar || this.dark || this.torchOn)));
     this.$.torch.hidden = !show;
     this.$.torch.classList.toggle('on', this.torchOn);
     (this.$.torch.querySelector('.t') as HTMLElement).textContent = this.torchOn ? this.L.torchOff : this.L.torchOn;

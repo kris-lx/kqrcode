@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { analyze as analyzeRaw, locate, symbolModules, type AnalyzeInput, type AnalyzeOptions, type Decoder } from '../src/engine.ts';
+import { analyze as analyzeRaw, locate, moire, symbolModules, type AnalyzeInput, type AnalyzeOptions, type Decoder } from '../src/engine.ts';
 import { createZXingDecoder } from '../src/decoder-zxing.ts';
 import { jsqrDecoder } from '../src/decoder-jsqr.ts';
 import { render, renderSymbol } from './helpers.ts';
@@ -140,4 +140,22 @@ test('symbolModules', () => {
   assert.equal(symbolModules('micro_qr_code', 'M4'), 17);
   assert.equal(symbolModules('rm_qr_code', 'R13x27'), 27);
   assert.equal(symbolModules(undefined, ''), 25);
+});
+
+// a long EMVCo payment payload (~200 chars, QR version 9) – the codes people scan off screens
+const EMV = '00020101021238670016A00526628466257701082771041802030010324LAKMXXX202611210001234565204599953034185406150000'
+  + '5802LA5918KHAMPHOUI SHOP LTD6009VIENTIANE62400108INV1234505121234567890120708T00123456304';
+
+for (const angle of [0, 23, 92, 161]) {
+  test(`reads a dense code filmed off a screen (moiré), ${angle}°`, async () => {
+    const img = render(EMV, { module: 4, angle, screen: 0.45 });
+    assert.equal((await analyze(img, { invert: true })).text, EMV);
+  });
+}
+
+test('moire score tells a filmed screen from a camera scene', () => {
+  const gray = (img: AnalyzeInput) => { const g = new Uint8Array(img.width * img.height); for (let i = 0; i < g.length; i++) g[i] = img.data[i * 4]; return g; };
+  const clean = render(EMV, { module: 4 }), screen = render(EMV, { module: 4, screen: 0.25 });
+  assert.ok(moire(gray(clean), clean.width, clean.height) < 18);
+  assert.ok(moire(gray(screen), screen.width, screen.height) > 18);
 });

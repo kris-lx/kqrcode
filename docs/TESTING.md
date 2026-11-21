@@ -17,15 +17,16 @@ npm run build   # some tests use the built package
 npm test
 ```
 
-The 70 tests cover:
+The 82 tests cover:
 
-- **decoding**: rotation, blur, perspective, far and inverted codes, the native-resolution region path, and Micro QR and rMQR;
+- **decoding**: rotation, blur, perspective, far and inverted codes, the native-resolution region path, Micro QR and rMQR, and dense payment codes filmed off a screen (moiré);
+- **EMV payment codes**: the CRC, every field of a merchant code, tampered and malformed payloads, and `acceptEMV` options;
 - **`formats` and module-size estimates** for every QR-family symbol;
 - **auto-zoom** decisions;
 - **super-resolution**: the JS kernel and the ONNX model, compared with reference output from OpenCV;
 - **SSR**: importing and rendering the React and Vue wrappers on the server;
 - **React Native**: the page builder and its escaping, the message bridge, `accept` round trips, the Android permission order, background handling, recovery after a WebView crash, and the Expo config plugin;
-- **the CLI**: framework detection, generated components, React Native permission edits (once only, and nothing with `--dry-run`), and `doctor`.
+- **the CLI**: framework detection, generated components, React Native and Capacitor permission edits (once only, and nothing with `--dry-run`), and `doctor`.
 
 ## 2. Browser end-to-end
 

@@ -6,7 +6,7 @@ k-qr-scanner offers three levels of control:
 2. **[`<kqr-scanner>`](#the-kqr-scanner-element)**: the full-screen UI as a custom element, for templates and frameworks.
 3. **[`QRScanner`](#qrscanner-headless)**: the camera and decoding engine with no UI, for your own interface.
 
-Also on this page: [the `accept` callback](#the-accept-callback), [types](#types), [framework wrappers](#framework-wrappers), [super-resolution](#super-resolution), [`k-qr-scanner/sr`](#k-qr-scannersr) and [the CLI](#cli).
+Also on this page: [the `accept` callback](#the-accept-callback), [payment QR codes (EMV)](#payment-qr-codes-emv), [types](#types), [framework wrappers](#framework-wrappers), [super-resolution](#super-resolution), [`k-qr-scanner/sr`](#k-qr-scannersr) and [the CLI](#cli).
 
 ---
 
@@ -37,6 +37,7 @@ It rejects with:
 | `success` | `'dot' \| 'box' \| 'none'` | `'dot'` | the marker shown where the code was found |
 | `torch` | `'auto' \| 'always' \| 'never'` | `'auto'` | flashlight button; `auto` shows it when the scene is dark |
 | `zoomControl` | `'slider' \| 'none'` | `'none'` | show a zoom slider (pinch and double-tap always work) |
+| `layout` | `'default' \| 'bar'` | `'default'` | `'bar'`: flashlight, big album button and your button in one row, see [CUSTOMIZE.md](CUSTOMIZE.md#bottom-bar-layout) |
 | `autoZoom` | `boolean` | `true` | zoom in on small codes |
 | `maxZoom` | `number` | `8` | zoom limit (digital zoom stops at 4×) |
 | `gallery` | `boolean` | `true` | album button |
@@ -75,6 +76,7 @@ The camera starts as soon as the element is added to the page (unless `manual` i
 | `success` | `dot` · `box` · `none` | `dot` |
 | `torch` | `auto` · `always` · `never` | `auto` |
 | `zoom-control` | `slider` · `none` | `none` |
+| `layout` | `default` · `bar` | `default` |
 | `max-zoom` | number | `8` |
 | `super-resolution` | `js` · `webgpu` · `off` | `js` |
 | `onnx-runtime-url` | URL | jsDelivr |
@@ -206,6 +208,74 @@ The same callback is available as the `accept` option of `scanQR()` and `QRScann
 
 ---
 
+## Payment QR codes (EMV)
+
+Most payment QR codes (LAO QR, PromptPay, VietQR, DuitNow, QRIS, SGQR, UnionPay and others) follow the EMVCo merchant-presented format: a list of numbered fields that ends with a CRC checksum. Three helpers read and check them; they are plain string code, work in the browser, in Node and in React Native, and are dropped by your bundler if you don't use them.
+
+```ts
+import { acceptEMV, parseEMV, emvCRC } from 'k-qr-scanner';   // also from 'k-qr-scanner/react-native'
+```
+
+### `acceptEMV(options?)`
+
+Returns an [`accept` callback](#the-accept-callback) that lets through only intact EMV codes (the CRC must match) that meet your options. Anything else is turned down with `message`, and scanning continues.
+
+```ts
+const result = await scanQR({
+  accept: acceptEMV({
+    currency: 'LAK',                        // or '418'; an array for several
+    country: 'LA',
+    message: 'ນີ້ບໍ່ແມ່ນ QR ຈ່າຍເງິນ',
+    check: async (emv) => (await isKnownMerchant(emv)) || 'Unknown merchant', // optional, your own last check
+  }),
+});
+const emv = parseEMV(result.text)!;
+pay({ to: emv.merchantName, amount: emv.amount, currency: emv.currencyCode });
+```
+
+| option | type | description |
+| :--- | :--- | :--- |
+| `currency` | `string \| string[]` | allowed currencies, as letters (`'LAK'`) or numbers (`'418'`) |
+| `country` | `string \| string[]` | allowed countries, e.g. `'LA'` |
+| `accounts` | `string[]` | only codes that carry one of these account ids (the AID or unique id of tags 26–51, or the value of tags 02–25) |
+| `dynamicOnly` | `boolean` | only dynamic codes, which are made for one payment |
+| `message` | `string` | shown for any code that doesn't pass; default `'Not a payment QR code'` |
+| `check` | `(emv, result) => AcceptVerdict \| Promise<…>` | your own last check, e.g. on your server |
+
+### `parseEMV(text)`
+
+Reads a payload into fields. Returns `null` when the text is not an EMV code or its structure is broken.
+
+```ts
+interface EMVQR {
+  valid: boolean;                        // the CRC matches; treat false as damaged or altered
+  initiation?: 'static' | 'dynamic';     // reusable sticker, or one payment
+  accounts: { tag: string; id: string; fields: Record<string, string> }[];
+  mcc?: string;                          // merchant category code
+  currency?: string;                     // '418'
+  currencyCode?: string;                 // 'LAK', for well-known currencies
+  amount?: string;                       // as written, e.g. '15000'
+  tip?: { indicator: string; fixed?: string; percent?: string };
+  country?: string;                      // 'LA'
+  merchantName?: string;
+  merchantCity?: string;
+  postalCode?: string;
+  additional?: {                         // tag 62
+    billNumber?: string; mobileNumber?: string; storeLabel?: string; loyaltyNumber?: string;
+    referenceLabel?: string; customerLabel?: string; terminalLabel?: string; purpose?: string;
+    fields: Record<string, string>;
+  };
+  language?: { preference?: string; merchantName?: string; merchantCity?: string }; // tag 64
+  tags: Record<string, string>;          // every top-level field as written
+}
+```
+
+### `emvCRC(data)`
+
+The EMVCo checksum (CRC-16/CCITT-FALSE) as four hex digits, for building or checking payloads yourself.
+
+---
+
 ## Types
 
 ```ts
@@ -234,7 +304,7 @@ class ScanError extends Error {
 interface QRHint { cx: number; cy: number; size: number; module: number; full: boolean }
 ```
 
-Other exports from `k-qr-scanner`: `KQRScannerElement` and `defineScannerElement()` (the element class and its registration), `TAG_NAME` (`'kqr-scanner'`), `LABELS` (the built-in texts), `THEME_VARS` (the CSS variable names) and `QR_FORMATS`.
+Other exports from `k-qr-scanner`: `parseEMV`, `acceptEMV` and `emvCRC` ([payment QR codes](#payment-qr-codes-emv)), `KQRScannerElement` and `defineScannerElement()` (the element class and its registration), `TAG_NAME` (`'kqr-scanner'`), `LABELS` (the built-in texts), `THEME_VARS` (the CSS variable names) and `QR_FORMATS`.
 
 ---
 
@@ -274,7 +344,7 @@ npx k-qr-scanner init      # install and write a starter component
 npx k-qr-scanner doctor    # check the project setup
 ```
 
-`init` detects the framework (Next.js, Nuxt, SvelteKit, Svelte, Angular, Vue, React Native / Expo, React or plain JavaScript) and the package manager (npm, pnpm, yarn or bun), installs the package and writes a scanner component. For React Native it also installs `react-native-webview` and adds the camera permissions.
+`init` detects the framework (Next.js, Nuxt, SvelteKit, Svelte, Angular, Vue, React Native / Expo, React or plain JavaScript) and the package manager (npm, pnpm, yarn or bun), installs the package and writes a scanner component. For React Native it also installs `react-native-webview` and adds the camera permissions; in a Capacitor project it adds them to the native iOS and Android projects.
 
 | option | description |
 | :--- | :--- |

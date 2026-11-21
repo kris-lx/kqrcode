@@ -142,7 +142,8 @@ if (process.argv.includes('--rn')) {
   // stand-in for window.ReactNativeWebView that answers accept requests like the RN side does.
   const { buildPage } = await import('../src/rn-bridge.ts');
   const { default: runtime } = await import('../src/rn-runtime.generated.ts');
-  const html = buildPage({ locale: 'lo', accept: true, cssVars: { '--kqr-accent': '#e60012' } }, { runtime });
+  const { default: engine } = await import('../src/worker-source.generated.ts');
+  const html = buildPage({ locale: 'lo', accept: true, cssVars: { '--kqr-accent': '#e60012' } }, { runtime, engine });
   const p5 = await browser.newPage({ viewport: { width: 390, height: 780 } });
   p5.on('pageerror', (e) => console.log('[pageerror]', e.message));
   await p5.addInitScript(() => {

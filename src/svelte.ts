@@ -46,6 +46,8 @@ export interface QRScannerActionOptions {
   success?: 'dot' | 'box' | 'none';
   torch?: 'auto' | 'always' | 'never';
   zoomControl?: 'slider' | 'none';
+  /** 'bar': flashlight left, big album button center, slot actions-right free. Default: classic layout. */
+  layout?: 'default' | 'bar';
   /** CSS variables, e.g. { '--kqr-accent': '#e60012' } */
   style?: Record<string, string>;
 }
@@ -57,7 +59,7 @@ const FLAGS: [keyof QRScannerActionOptions, string][] = [
 
 function applyAttrs(el: KQRScannerElement, o: QRScannerActionOptions) {
   for (const [k, attr] of FLAGS) o[k] ? el.setAttribute(attr, '') : el.removeAttribute(attr);
-  for (const [k, attr] of [['facing', 'facing'], ['locale', 'locale'], ['maxZoom', 'max-zoom'], ['superResolution', 'super-resolution'], ['theme', 'theme'], ['heading', 'heading'], ['success', 'success'], ['torch', 'torch'], ['zoomControl', 'zoom-control']] as const) {
+  for (const [k, attr] of [['facing', 'facing'], ['locale', 'locale'], ['maxZoom', 'max-zoom'], ['superResolution', 'super-resolution'], ['theme', 'theme'], ['heading', 'heading'], ['success', 'success'], ['torch', 'torch'], ['zoomControl', 'zoom-control'], ['layout', 'layout']] as const) {
     const v = o[k];
     v !== undefined && v !== null ? el.setAttribute(attr, String(v)) : el.removeAttribute(attr);
   }

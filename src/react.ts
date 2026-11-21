@@ -40,6 +40,8 @@ export interface QRScannerProps {
   /** 'auto' (show when dark, default) | 'always' | 'never' */
   torch?: 'auto' | 'always' | 'never';
   zoomControl?: 'slider' | 'none';
+  /** 'bar': flashlight left, big album button center, slot actions-right free. Default: classic layout. */
+  layout?: 'default' | 'bar';
   noClose?: boolean;
   /** Slotted children: <button slot="actions-left">My QR</button>, <nav slot="footer">…</nav> */
   children?: ReactNode;
@@ -93,7 +95,7 @@ export const QRScanner = forwardRef<KQRScannerElement | null, QRScannerProps>(fu
   const attrs: Record<string, unknown> = {
     ref: el, style: props.style, class: props.className,
     facing: props.facing, locale: props.locale, 'max-zoom': props.maxZoom, 'super-resolution': props.superResolution,
-    theme: props.theme, heading: props.heading, success: props.success, torch: props.torch, 'zoom-control': props.zoomControl,
+    theme: props.theme, heading: props.heading, success: props.success, torch: props.torch, 'zoom-control': props.zoomControl, layout: props.layout,
     formats: props.formats?.join(' '),
   };
   const flags: [string, boolean | undefined][] = [

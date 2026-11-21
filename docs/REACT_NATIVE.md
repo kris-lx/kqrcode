@@ -101,9 +101,11 @@ export function PayScreen() {
 
 Mount the component to open the scanner and unmount it to close.
 
+For payment codes, `acceptEMV` and `parseEMV` are exported from `k-qr-scanner/react-native` too: `accept={acceptEMV({ currency: 'LAK' })}`. See [payment QR codes](API.md#payment-qr-codes-emv). For a banking-app screen, combine `layout="bar"` with `slots={{ banner: '…', 'actions-right': '…' }}` ([bottom bar layout](CUSTOMIZE.md#bottom-bar-layout)).
+
 ## Props
 
-These work exactly as on the web (see [API.md](API.md#scanqr)): `theme`, `locale`, `heading`, `labels`, `facing`, `continuous`, `success`, `torch`, `zoomControl`, `maxZoom`, `superResolution`, `formats`, `accept`, `noAutoZoom`, `noGallery`, `noTorch`, `noBeep`, `noVibrate` and `noClose`.
+These work exactly as on the web (see [API.md](API.md#scanqr)): `theme`, `locale`, `heading`, `labels`, `facing`, `continuous`, `success`, `torch`, `zoomControl`, `maxZoom`, `superResolution`, `formats`, `accept`, `layout`, `noAutoZoom`, `noGallery`, `noTorch`, `noBeep`, `noVibrate` and `noClose`.
 
 Callbacks:
 
@@ -153,7 +155,7 @@ The defaults are tuned for scanning, so most apps never need `webViewProps`:
 ## Loading the scanner from a URL
 
 ```tsx
-<QRScanner scriptUrl="https://cdn.jsdelivr.net/npm/k-qr-scanner@0.2.0/dist/kqrcode.global.js" />
+<QRScanner scriptUrl="https://cdn.jsdelivr.net/npm/k-qr-scanner@0.3.0/dist/kqrcode.global.js" />
 ```
 
 This loads that version instead of the bundled one, which is useful to try a fix without an app update. `kqrcode.engine.js` must be in the same directory (it is on jsDelivr and unpkg), the phone needs network access, and the bundled copy stays in your app either way. Always pin a version.

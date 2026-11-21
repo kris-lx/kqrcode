@@ -1,6 +1,6 @@
 name: Release
 
-# Publishes to npm when a version tag is pushed: git tag v0.2.0 && git push --tags
+# Publishes to npm when a version tag is pushed: git tag v0.3.0 && git push --tags
 # Requires the repository secret NPM_TOKEN (an npm automation token).
 on:
   push:

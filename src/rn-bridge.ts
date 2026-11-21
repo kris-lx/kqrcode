@@ -18,6 +18,7 @@ export interface PageConfig {
   success?: 'dot' | 'box' | 'none';
   torch?: 'auto' | 'always' | 'never';
   zoomControl?: 'slider' | 'none';
+  layout?: 'default' | 'bar';
   maxZoom?: number;
   superResolution?: 'js' | 'webgpu' | 'off';
   onnxRuntimeUrl?: string;
@@ -61,7 +62,7 @@ export const BOOT = `(function () {
   if (!window.KQRCode) { post({ type: 'error', code: 'unsupported', message: 'kqrcode failed to load' }); return; }
   var el = document.createElement('kqr-scanner');
   var attrs = { theme: cfg.theme, locale: cfg.locale, heading: cfg.heading, facing: cfg.facing, success: cfg.success,
-    torch: cfg.torch, 'zoom-control': cfg.zoomControl, 'max-zoom': cfg.maxZoom, 'super-resolution': cfg.superResolution,
+    torch: cfg.torch, 'zoom-control': cfg.zoomControl, layout: cfg.layout, 'max-zoom': cfg.maxZoom, 'super-resolution': cfg.superResolution,
     'onnx-runtime-url': cfg.onnxRuntimeUrl, formats: cfg.formats && cfg.formats.join(' ') };
   for (var a in attrs) if (attrs[a] !== undefined && attrs[a] !== null && attrs[a] !== '') el.setAttribute(a, String(attrs[a]));
   var flags = { continuous: cfg.continuous, 'keep-camera': cfg.keepCamera, 'no-auto-zoom': cfg.noAutoZoom,
@@ -111,11 +112,13 @@ const scriptJs = (src: string) => src.replace(/<\/(script)/gi, '<\\/$1').replace
 const attrUrl = (u: string) => u.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
 /**
- * The WebView page. `runtime` is the self-contained kqrcode build (engine included, works offline);
- * pass `scriptUrl` instead to load kqrcode.global.js from a URL (CDN or your server).
+ * The WebView page. `runtime` is the kqrcode page build and `engine` the decoding engine's source (both
+ * bundled with the app, so it works offline); pass `scriptUrl` instead to load kqrcode.global.js from a URL.
  */
-export function buildPage(cfg: PageConfig, src: { runtime: string } | { scriptUrl: string }): string {
-  const lib = 'scriptUrl' in src ? `<script src="${attrUrl(src.scriptUrl)}"></script>` : `<script>${scriptJs(src.runtime)}</script>`;
+export function buildPage(cfg: PageConfig, src: { runtime: string; engine?: string } | { scriptUrl: string }): string {
+  const lib = 'scriptUrl' in src
+    ? `<script src="${attrUrl(src.scriptUrl)}"></script>`
+    : `${src.engine ? `<script>window.__KQR_ENGINE__=${scriptJson(src.engine)};</script>` : ''}<script>${scriptJs(src.runtime)}</script>`;
   return `<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <style>html,body{margin:0;height:100%;overflow:hidden;background:${cfg.cssVars?.['--kqr-bg'] ? 'var(--kqr-bg)' : '#000'};-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}</style>

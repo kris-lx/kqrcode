@@ -142,3 +142,17 @@ test('init --dry-run leaves native files alone', () => {
   assert.match(r.stdout, /added NSCameraUsageDescription/);
   assert.equal(readFileSync(join(dir, 'ios/App/Info.plist'), 'utf8'), PLIST);
 });
+
+test('init writes the camera permission into a Capacitor app (ios/App/App/Info.plist)', () => {
+  const dir = project({ react: '19', '@capacitor/core': '7', '@capacitor/ios': '7', '@capacitor/android': '7' }, {
+    'ios/App/App/Info.plist': PLIST, 'ios/App/Pods/Info.plist': PLIST, 'android/app/src/main/AndroidManifest.xml': MANIFEST,
+  });
+  const r = run(dir, 'init', '--no-install');
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /framework\s+react/);
+  assert.match(readFileSync(join(dir, 'ios/App/App/Info.plist'), 'utf8'), /NSCameraUsageDescription/);
+  assert.equal(readFileSync(join(dir, 'ios/App/Pods/Info.plist'), 'utf8'), PLIST, 'Pods are left alone');
+  assert.match(readFileSync(join(dir, 'android/app/src/main/AndroidManifest.xml'), 'utf8'), /android\.permission\.CAMERA/);
+  assert.match(r.stdout, /npx cap sync/);
+  assert.match(run(dir, 'doctor').stdout, /Capacitor app[\s\S]*iOS camera usage description set[\s\S]*Android CAMERA permission declared/);
+});

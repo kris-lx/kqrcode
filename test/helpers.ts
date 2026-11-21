@@ -1,7 +1,11 @@
 import QRCode from 'qrcode';
 import { writeBarcode } from 'zxing-wasm/full';
 
-export interface RenderOpts { module: number; angle?: number; W?: number; H?: number; cx?: number; cy?: number; blur?: boolean; invert?: boolean }
+export interface RenderOpts {
+  module: number; angle?: number; W?: number; H?: number; cx?: number; cy?: number; blur?: boolean; invert?: boolean;
+  /** Film a display: lower contrast plus the screen's pixel grid beating against the sensor (0–1). */
+  screen?: number;
+}
 
 /** Render a QR with rotation, module size, and a perspective-free affine placement. */
 export function render(text: string, opts: RenderOpts) {
@@ -27,8 +31,9 @@ export function renderMatrix(dark: (u: number, v: number) => boolean, nw: number
   const cos = Math.cos(a);
   const sin = Math.sin(a);
   const data = new Uint8ClampedArray(W * H * 4);
-  const bg = opts.invert ? 20 : 235;
-  const fg = opts.invert ? 235 : 20;
+  const scr = opts.screen ?? 0;
+  const bg = scr ? 185 : opts.invert ? 20 : 235;
+  const fg = scr ? 75 : opts.invert ? 235 : 20;
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       // inverse transform to symbol space (in modules)
@@ -40,6 +45,8 @@ export function renderMatrix(dark: (u: number, v: number) => boolean, nw: number
       const ui = Math.floor(u);
       const vi = Math.floor(v);
       if (ui >= 0 && vi >= 0 && ui < nw && vi < nh && dark(ui, vi)) val = fg;
+      // moiré: LCD pixel grid (periods ~2.4 / 3.3 px) sampled by the camera
+      if (scr) val *= 1 - scr * (0.5 + 0.5 * Math.cos((2 * Math.PI * x) / 2.37 + y * 0.02)) * (0.6 + 0.4 * Math.cos((2 * Math.PI * y) / 3.31));
       // mild deterministic noise
       val += ((x * 7 + y * 13) % 9) - 4;
       const o = (y * W + x) * 4;

@@ -23,7 +23,8 @@
 k-qr-scanner opens a full-screen camera view that reads a QR code **anywhere in the picture**: at an angle, upside down, inverted, or from across the room. When a code is too small to read, the scanner finds it anyway and **zooms in by itself**, the way the WeChat and Alipay scanners do.
 
 - **Reads far and blurry codes.** ZXing-C++ (WebAssembly) runs in a Web Worker. A finder-pattern locator drives auto-zoom, and WeChat's super-resolution model has a last try at small, blurry codes.
-- **Reads the whole QR family.** QR Code (Model 1 and 2), Micro QR and rMQR.
+- **Reads the whole QR family.** QR Code (Model 1 and 2), Micro QR and rMQR, including codes filmed off a screen.
+- **Made for payment QR codes.** EMV helpers check the CRC and read the merchant, amount and currency of LAO QR, PromptPay, VietQR and other EMVCo codes.
 - **You decide what counts.** An `accept` callback checks each code before it becomes the result. It can be async and can show the user a message.
 - **Works everywhere.** React, Next.js, Vue, Nuxt, Svelte, SvelteKit, Angular, React Native (iOS, Android, Expo) and plain HTML.
 - **Looks native.** Five themes, CSS variables, `::part()` and slots. Pinch zoom, tap to focus, flashlight, album import, beep and haptics.
@@ -165,6 +166,20 @@ console.log(result.format, result.version, result.ecLevel); // 'qr_code' '7' 'M'
 
 A code that is turned down is not checked again while it stays in view. `accept`, `formats` and a `reject` event (`onReject` in the wrappers) work the same in `scanQR`, `<kqr-scanner>`, the headless `QRScanner` and every framework wrapper.
 
+### Payment QR codes (EMV)
+
+LAO QR, PromptPay, VietQR, DuitNow, QRIS, UnionPay and most other payment codes use the EMVCo format. `acceptEMV()` lets through only intact payment codes (the CRC must match), and `parseEMV()` reads their fields:
+
+```ts
+import { scanQR, acceptEMV, parseEMV } from 'k-qr-scanner';
+
+const { text } = await scanQR({ accept: acceptEMV({ currency: 'LAK', message: 'ນີ້ບໍ່ແມ່ນ QR ຈ່າຍເງິນ' }) });
+const emv = parseEMV(text)!;
+pay({ to: emv.merchantName, amount: emv.amount, currency: emv.currencyCode }); // 'LAK'
+```
+
+The helpers are plain string code (about 1 kB), work in Node and React Native too, and are left out of your bundle if you don't use them. Details: [API.md](docs/API.md#payment-qr-codes-emv).
+
 ## Look and feel
 
 ```html
@@ -186,7 +201,18 @@ A code that is turned down is not checked again while it stays in view. `accept`
 | `frame` | a dimmed mask around a frame with a scan line |
 | `none` | the camera only; you draw the UI |
 
-The frame is decoration only: the whole camera image is always scanned. Themes, all 15 CSS variables, 18 parts, 8 slots and the built-in languages (English, Lao, Chinese) are covered in **[docs/CUSTOMIZE.md](docs/CUSTOMIZE.md)**.
+The frame is decoration only: the whole camera image is always scanned.
+
+For a banking-app screen, `layout="bar"` puts the flashlight, a large album button and your own button in one row at the bottom, and the `banner` slot holds a "supported QR" strip under the top bar:
+
+```html
+<kqr-scanner theme="frame" layout="bar" style="--kqr-accent: #e60012; --kqr-corner-width: 0; --kqr-frame-border: 1px solid #fff6">
+  <div slot="banner">Support QR: <img src="/img/supported-qr.png" alt="LAO QR, UnionPay, WeChat Pay" height="48"></div>
+  <button slot="actions-right" onclick="openMyQr()">My QR</button>
+</kqr-scanner>
+```
+
+Themes, all 19 CSS variables, 19 parts, 10 slots, the bar layout and the built-in languages (English, Lao, Chinese) are covered in **[docs/CUSTOMIZE.md](docs/CUSTOMIZE.md)**.
 
 ## Headless mode
 
@@ -215,7 +241,7 @@ Every option, method, event and type: **[docs/API.md](docs/API.md)**.
 - **Content-Security-Policy.** Allow `worker-src blob:` and `script-src 'wasm-unsafe-eval'`. `npx k-qr-scanner doctor` checks your project for this and more.
 - **Treat scanned text as untrusted input.** Validate it before acting on it, and never insert it as HTML. `accept` is a good place to do this.
 - **Preload.** Call `QRScanner.preload()` when your Scan button appears, so the first scan opens instantly.
-- **Self-hosting the script build.** Serve `kqrcode.global.js`, `kqrcode.engine.js` and `kqrcode.jsqr.js` from one directory.
+- **Self-hosting the script build.** Serve `kqrcode.global.js`, `kqrcode.engine.js` and `kqrcode.jsqr.js` from one directory, as JavaScript (`text/javascript`). The engine and jsQR load as ES modules, so a different origin needs CORS headers (jsDelivr and unpkg send them).
 - **WebGPU super-resolution** loads ONNX Runtime Web from jsDelivr. To avoid third-party scripts, self-host it and set `onnx-runtime-url`.
 
 ## Benchmarks
@@ -226,21 +252,21 @@ Every engine sees the same pixels: synthetic camera frames with perspective, rot
 
 | Scenario | **k-qr-scanner** | WeChat ¹ | ZXing-WASM | jsQR |
 | :--- | :---: | :---: | :---: | :---: |
-| **🎯 Decode rate: all frames** | **`65%`** 🏆 | `62%` | `61%` | `42%` |
-| **🔭 Far: 1.5 px modules** | `17%` | **`29%`** 🏆 | `4%` | `0%` |
+| **🎯 Decode rate: all frames** | **`69%`** 🏆 | `62%` | `61%` | `42%` |
+| **🔭 Far: 1.5 px modules** | **`38%`** 🏆 | `29%` | `4%` | `0%` |
 | **🔭 Far: 2.5 px modules** | **`63%`** 🏆 | `50%` | **`63%`** 🏆 | `25%` |
-| **🌫️ Blurred (σ 0.8)** | **`75%`** 🏆 | `73%` | `67%` | `46%` |
-| **🌗 Low contrast** | **`61%`** 🏆 | `53%` | `60%` | `44%` |
+| **🌫️ Blurred (σ 0.8)** | **`77%`** 🏆 | `73%` | `67%` | `46%` |
+| **🌗 Low contrast** | **`64%`** 🏆 | `53%` | `60%` | `44%` |
 | **⏱️ Latency per frame (p50 / p95)** | `14.4 ms`<br><sub>p95: 50.6 ms</sub> | `13.4 ms`<br><sub>p95: 106.7 ms</sub> | **`10.6 ms`** 🏆<br><sub>p95: 12.4 ms</sub> | `34.0 ms`<br><sub>p95: 50.1 ms</sub> |
 | **💤 Frame without a code (p50)** | `18.8 ms` | `271.1 ms` | **`8.6 ms`** 🏆 | `116.3 ms` |
 
-> 144 synthetic 1280×720 frames + 8 without a code · single CPU thread · last updated 2026-11-19
+> 144 synthetic 1280×720 frames + 8 without a code · single CPU thread · decode rates from 2026-11-21, times and the WeChat column from the 2026-11-19 run (same machine as WeChat)
 
 <!-- BENCH:END -->
 
 ¹ WeChat = OpenCV `wechat_qrcode` 4.14, native C++, one thread. k-qr-scanner runs with `superResolution: 'webgpu'`; the default `'js'` mode is within one point.
 
-The scanner matches WeChat's open-source engine overall and does far less work on frames without a code, which is most of what a live camera sees. WeChat's CNN detector still wins on the very farthest codes. Method, more tables and how to reproduce: **[docs/BENCHMARK.md](docs/BENCHMARK.md)**.
+The scanner reads more codes than WeChat's open-source engine in every row, including the farthest ones, and does far less work on frames without a code, which is most of what a live camera sees. Codes filmed off a screen, where the display's pixel grid causes moiré, get their own recovery pass. Method, more tables and how to reproduce: **[docs/BENCHMARK.md](docs/BENCHMARK.md)**.
 
 ## Size
 
@@ -261,10 +287,11 @@ One decoding worker is shared by every scanner on the page and stays warm for 30
 | Firefox | full support |
 | Safari 15.4+ (iOS, macOS) | full support with digital zoom on a 4K stream (Safari has no camera zoom API) |
 | React Native | iOS 14.5+ and Android 7+, through `react-native-webview` 13+ |
+| Capacitor, native web views, Flutter | iOS 14.5+ and Android 7+; see [iOS and Android](docs/MOBILE.md) |
 
 If a strict CSP blocks WebAssembly or workers, the scanner falls back to jsQR, which reads regular QR codes only.
 
-Tested with 70 automated tests, production builds of React, Next.js, Nuxt, SvelteKit and Angular apps scanning end to end, and Chrome, Firefox and WebKit runs (20 start/stop cycles with no leaked workers or camera tracks). See **[docs/TESTING.md](docs/TESTING.md)**.
+Tested with 82 automated tests, production builds of React, Next.js, Nuxt, SvelteKit and Angular apps scanning end to end, and Chrome, Firefox and WebKit runs (20 start/stop cycles with no leaked workers or camera tracks). See **[docs/TESTING.md](docs/TESTING.md)**.
 
 > [!NOTE]
 > k-qr-scanner is in **beta (0.x)**, so the API may still change before 1.0. Reports from real phones are very welcome: [open an issue](https://github.com/kris-lx/kqrcode/issues/new/choose).
@@ -276,6 +303,7 @@ Tested with 70 automated tests, production builds of React, Next.js, Nuxt, Svelt
 | [API reference](docs/API.md) | `scanQR`, `<kqr-scanner>`, the headless `QRScanner`, types, the CLI |
 | [Frameworks](docs/FRAMEWORKS.md) | React, Next.js, Vue, Nuxt, Svelte, SvelteKit, Angular, plain HTML |
 | [React Native](docs/REACT_NATIVE.md) | setup, permissions, props, platform notes |
+| [iOS and Android](docs/MOBILE.md) | PWAs, Capacitor, native WKWebView and Android WebView, Flutter |
 | [Customizing](docs/CUSTOMIZE.md) | themes, CSS variables, parts, slots, languages |
 | [Benchmark](docs/BENCHMARK.md) | method and full results |
 | [Testing](docs/TESTING.md) | the test layers and how to run them |

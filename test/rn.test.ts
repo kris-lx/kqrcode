@@ -122,6 +122,8 @@ function loadBuilt(os: 'ios' | 'android', fakeReact?: unknown) {
     if (req === 'react-native-webview') return { WebView: FakeWebView };
     if (req === 'react-native') return RN;
     if (req === 'react' && fakeReact) return fakeReact;
+    // the shared ES-module engine (Metro bundles it); a stand-in keeps this test independent of require(esm)
+    if (req === '../kqrcode.engine.js') return { __esModule: true, default: 'ENGINE_SOURCE' };
     return orig.call(this, req, ...rest);
   };
   const path = require.resolve('../dist/rn/index.js');
@@ -144,7 +146,8 @@ test('built component renders a WebView with the page and wires messages', async
   }));
   const p = seen[0];
   assert.equal(p.source.baseUrl.slice(0, 8), 'https://', 'secure origin for getUserMedia');
-  assert.ok(p.source.html.length > 500_000, 'runtime (engine included) is inlined');
+  assert.ok(p.source.html.length > 100_000, 'runtime is inlined');
+  assert.ok(p.source.html.includes('window.__KQR_ENGINE__="ENGINE_SOURCE"'), 'engine source from the shared file is inlined');
   assert.match(p.source.html, /"formats":\["micro_qr_code"\]/);
   assert.match(p.source.html, /"accept":true/);
   assert.equal(p.mediaCapturePermissionGrantType, 'grant');

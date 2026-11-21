@@ -6,6 +6,8 @@ export { scanQR } from './scan-qr';
 export type { ScanQROptions } from './scan-qr';
 export type { QRHint, Point } from './engine';
 export { QR_FORMATS, type QRFormat } from './formats';
+export { parseEMV, acceptEMV, emvCRC } from './emv';
+export type { EMVQR, EMVAccount, EMVAdditionalData, AcceptEMVOptions } from './emv';
 export { AutoZoom } from './autozoom';
 
 import { defineScannerElement } from './element';

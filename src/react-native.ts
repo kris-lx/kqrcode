@@ -18,12 +18,15 @@ import { AppState, PermissionsAndroid, Platform, View } from 'react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { WebView } from 'react-native-webview';
 import runtime from './rn-runtime.generated';
+import * as engineModule from './worker-source.generated';
 import { appStateScript, buildPage, callScript, handleMessage, type BridgeCallbacks, type PageConfig } from './rn-bridge';
 import type { AcceptFn, ScanError, ScanResult } from './scanner';
 import type { ScannerLabels, ScannerTheme } from './element';
 import type { QRFormat } from './formats';
 
 export type { ScanResult, ScanError, AcceptFn, QRFormat, ScannerLabels, ScannerTheme };
+export { parseEMV, acceptEMV, emvCRC } from './emv';
+export type { EMVQR, EMVAccount, EMVAdditionalData, AcceptEMVOptions } from './emv';
 
 export interface QRScannerProps {
   onScan?: (result: ScanResult) => void;
@@ -54,6 +57,8 @@ export interface QRScannerProps {
   success?: 'dot' | 'box' | 'none';
   torch?: 'auto' | 'always' | 'never';
   zoomControl?: 'slider' | 'none';
+  /** 'bar': flashlight left, big album button center, slot actions-right free. Default: classic layout. */
+  layout?: 'default' | 'bar';
   maxZoom?: number;
   superResolution?: 'js' | 'webgpu' | 'off';
   noAutoZoom?: boolean;
@@ -93,6 +98,13 @@ export interface QRScannerHandle {
   pickImage(): void;
 }
 
+/**
+ * The engine source from the shared dist/kqrcode.engine.js (an ES module). Depending on the bundler's
+ * interop, `default` is the string itself or the module object that holds it.
+ */
+const engineDefault = (engineModule as unknown as { default: string | { default: string } }).default;
+const engine: string = typeof engineDefault === 'string' ? engineDefault : engineDefault.default;
+
 /** Origin of the page. https makes it a secure context, which getUserMedia requires. */
 const BASE_URL = 'https://kqrcode.local/';
 
@@ -130,7 +142,7 @@ export const QRScanner = forwardRef<QRScannerHandle, QRScannerProps>(function QR
 
   const cfg: PageConfig = {
     theme: props.theme, locale: props.locale, heading: props.heading, facing: props.facing, continuous: props.continuous,
-    keepCamera: props.keepCamera, success: props.success, torch: props.torch, zoomControl: props.zoomControl,
+    keepCamera: props.keepCamera, success: props.success, torch: props.torch, zoomControl: props.zoomControl, layout: props.layout,
     maxZoom: props.maxZoom, superResolution: props.superResolution, formats: props.formats, noAutoZoom: props.noAutoZoom,
     noGallery: props.noGallery, noTorch: props.noTorch, noBeep: props.noBeep, noVibrate: props.noVibrate,
     noClose: props.noClose, labels: props.labels, cssVars: props.cssVars, slots: props.slots, accept: !!props.accept,
@@ -138,7 +150,7 @@ export const QRScanner = forwardRef<QRScannerHandle, QRScannerProps>(function QR
   // Rebuild (and reload) the page only when the configuration really changes.
   const key = JSON.stringify(cfg) + '|' + (props.scriptUrl ?? '');
   const html = useMemo(
-    () => buildPage(cfg, props.scriptUrl ? { scriptUrl: props.scriptUrl } : { runtime }),
+    () => buildPage(cfg, props.scriptUrl ? { scriptUrl: props.scriptUrl } : { runtime, engine }),
     [key], // eslint-disable-line react-hooks/exhaustive-deps
   );
 

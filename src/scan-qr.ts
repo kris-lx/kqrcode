@@ -22,6 +22,8 @@ export interface ScanQROptions {
   /** 'auto' (show when dark, default) | 'always' | 'never' */
   torch?: 'auto' | 'always' | 'never';
   zoomControl?: 'slider' | 'none';
+  /** 'bar': flashlight left, big album button center, slot actions-right free. Default: classic layout. */
+  layout?: 'default' | 'bar';
   gallery?: boolean;
   beep?: boolean;
   vibrate?: boolean;
@@ -56,7 +58,7 @@ export function scanQR(o: ScanQROptions = {}): Promise<ScanResult> {
     };
     set('theme', o.theme); set('locale', o.locale); set('heading', o.heading); set('facing', o.facing);
     set('super-resolution', o.superResolution); set('onnx-runtime-url', o.onnxRuntimeUrl); set('success', o.success);
-    set('torch', o.torch); set('zoom-control', o.zoomControl); set('max-zoom', o.maxZoom); set('inline', o.inline);
+    set('torch', o.torch); set('zoom-control', o.zoomControl); set('layout', o.layout); set('max-zoom', o.maxZoom); set('inline', o.inline);
     set('no-gallery', o.gallery === false); set('no-beep', o.beep === false); set('no-vibrate', o.vibrate === false);
     set('no-auto-zoom', o.autoZoom === false); set('formats', o.formats?.join(' '));
     if (o.accept) el.accept = o.accept;
