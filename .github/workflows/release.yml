@@ -21,8 +21,8 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: npm
       - run: npm ci
+      - run: npm run build # generates sources the typecheck needs
       - run: npm run typecheck
-      - run: npm run build
       - run: npm test
       - name: Publish (pre-releases like 1.0.0-rc.1 go to the "beta" tag)
         run: |
