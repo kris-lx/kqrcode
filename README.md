@@ -2,14 +2,14 @@
 <br />
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg" />
-  <img src="docs/assets/logo.svg" alt="kqrcode" width="340" />
+  <img src="docs/assets/logo.svg" alt="k-qr-scanner" width="340" />
 </picture>
 
 <p><strong>The WeChat-style QR scanner for the web</strong></p>
 <p><i>A full-screen, long-range QR code scanner that finds codes anywhere in view, at any angle and from across the room, and zooms in by itself when a code is too small to read. It decodes with ZXing-C++ compiled to WebAssembly, falls back to WeChat's super-resolution model for blurry codes, and works in React, React Native, Vue, Svelte, Angular or plain HTML.</i></p>
 
 <p>
-<a href="https://www.npmjs.com/package/kqrcode"><img src="https://img.shields.io/npm/v/kqrcode?style=for-the-badge&logo=npm&color=CB3837" alt="npm version"></a>
+<a href="https://www.npmjs.com/package/k-qr-scanner"><img src="https://img.shields.io/npm/v/k-qr-scanner?style=for-the-badge&logo=npm&color=CB3837" alt="npm version"></a>
 <a href="https://github.com/kris-lx/kqrcode/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/kris-lx/kqrcode/ci.yml?branch=main&label=tests&style=for-the-badge&logo=github" alt="Tests"></a>
 <a href="#-browser-support"><img src="https://img.shields.io/badge/size-14_kB_gzip-07c160?style=for-the-badge" alt="14 kB gzip"></a>
 <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-ready-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"></a>
@@ -84,8 +84,8 @@ Every engine sees **the same pixels**: hard synthetic camera frames with perspec
   * A frozen frame with a "found it" check mark exactly where the code was.
 * **One API, Every Framework**: `scanQR()` for a single call, `<kqr-scanner>` for templates, and thin wrappers for React (with `'use client'`), React Native (iOS, Android, Expo), Vue and Svelte. Imports are SSR-safe in Next.js, Nuxt, SvelteKit and Angular.
 * **CLI Scaffolding**:
-  * `npx kqrcode init` detects your framework and package manager, installs the package and writes a ready-to-use component.
-  * `npx kqrcode doctor` checks your setup, including CSP.
+  * `npx k-qr-scanner init` detects your framework and package manager, installs the package and writes a ready-to-use component.
+  * `npx k-qr-scanner doctor` checks your setup, including CSP.
 * **Private by Design**: Frames never leave the device. The only optional network request is ONNX Runtime Web for WebGPU, and you can self-host it.
 
 ---
@@ -93,13 +93,13 @@ Every engine sees **the same pixels**: hard synthetic camera frames with perspec
 ## 🛠️ Installation & Quick Start
 
 ```bash
-npx kqrcode init          # detects your framework, installs, creates a <QrScanner> component
+npx k-qr-scanner init          # detects your framework, installs, creates a <QrScanner> component
 # or
-npm install kqrcode       # pnpm add kqrcode · yarn add kqrcode · bun add kqrcode
+npm install k-qr-scanner       # pnpm add k-qr-scanner · yarn add k-qr-scanner · bun add k-qr-scanner
 ```
 
 ```ts
-import { scanQR } from 'kqrcode';
+import { scanQR } from 'k-qr-scanner';
 
 // Opens the full-screen scanner, resolves with the first code, cleans up after itself.
 const { text } = await scanQR({ theme: 'wechat', locale: 'lo', heading: 'ສະແກນເພື່ອຈ່າຍ' });
@@ -108,7 +108,7 @@ const { text } = await scanQR({ theme: 'wechat', locale: 'lo', heading: 'ສະ�
 No bundler? Use one script tag (17 kB; the engine loads from `kqrcode.engine.js` next to it on first use):
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/kqrcode/dist/kqrcode.global.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/k-qr-scanner/dist/kqrcode.global.js"></script>
 <kqr-scanner theme="alipay"></kqr-scanner>
 <script>
   document.querySelector('kqr-scanner').addEventListener('scan', (e) => alert(e.detail.text));
@@ -122,7 +122,7 @@ No bundler? Use one script tag (17 kB; the engine loads from `kqrcode.engine.js`
 ### 1. ⚡ One Call: `scanQR()` with Cancellation and Error Handling
 
 ```ts
-import { scanQR, QRScanner, ScanError } from 'kqrcode';
+import { scanQR, QRScanner, ScanError } from 'k-qr-scanner';
 
 // Start downloading the decoder while the user is still looking at your "Scan" button.
 QRScanner.preload();
@@ -155,7 +155,7 @@ try {
 
 ```tsx
 import { useState } from 'react';
-import { QRScanner } from 'kqrcode/react'; // ships with 'use client', safe in App Router pages
+import { QRScanner } from 'k-qr-scanner/react'; // ships with 'use client', safe in App Router pages
 
 export function PayButton() {
   const [open, setOpen] = useState(false);
@@ -181,7 +181,7 @@ export function PayButton() {
 ```
 
 > [!TIP]
-> In Next.js, lazy-load it so the engine chunk is only fetched on the scan page: `dynamic(() => import('kqrcode/react').then(m => m.QRScanner), { ssr: false })`.
+> In Next.js, lazy-load it so the engine chunk is only fetched on the scan page: `dynamic(() => import('k-qr-scanner/react').then(m => m.QRScanner), { ssr: false })`.
 
 ---
 
@@ -190,7 +190,7 @@ export function PayButton() {
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue';
-import { QRScanner } from 'kqrcode/vue';
+import { QRScanner } from 'k-qr-scanner/vue';
 
 const open = ref(false);
 function onScan(r: { text: string }) {
@@ -216,7 +216,7 @@ function onScan(r: { text: string }) {
 
 ```svelte
 <script lang="ts">
-  import { qrScanner } from 'kqrcode/svelte'; // actions only run in the browser, so SSR-safe
+  import { qrScanner } from 'k-qr-scanner/svelte'; // actions only run in the browser, so SSR-safe
   let open = $state(false);
 </script>
 
@@ -235,7 +235,7 @@ function onScan(r: { text: string }) {
 ### 5. 📱 React Native & Expo
 
 ```tsx
-import { QRScanner } from 'kqrcode/react-native'; // needs react-native-webview
+import { QRScanner } from 'k-qr-scanner/react-native'; // needs react-native-webview
 
 <Modal visible={open} presentationStyle="fullScreen" onRequestClose={() => setOpen(false)}>
   <QRScanner
@@ -249,7 +249,7 @@ import { QRScanner } from 'kqrcode/react-native'; // needs react-native-webview
 </Modal>
 ```
 
-The same scanner runs inside a WebView with the engine bundled, so it works offline: same themes, auto-zoom, QR formats and `accept`. Works in Expo Go. `npx kqrcode init` does the whole setup, camera permissions included (an Expo config plugin, or the Info.plist and AndroidManifest entries in a bare app), and the component asks for the camera itself. Details: **[docs/REACT_NATIVE.md](docs/REACT_NATIVE.md)**.
+The same scanner runs inside a WebView with the engine bundled, so it works offline: same themes, auto-zoom, QR formats and `accept`. Works in Expo Go. `npx k-qr-scanner init` does the whole setup, camera permissions included (an Expo config plugin, or the Info.plist and AndroidManifest entries in a bare app), and the component asks for the camera itself. Details: **[docs/REACT_NATIVE.md](docs/REACT_NATIVE.md)**.
 
 ---
 
@@ -257,8 +257,8 @@ The same scanner runs inside a WebView with the engine bundled, so it works offl
 
 ```ts
 import { Component, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
-import 'kqrcode';                       // registers <kqr-scanner>
-import type { ScanResult } from 'kqrcode';
+import 'k-qr-scanner';                       // registers <kqr-scanner>
+import type { ScanResult } from 'k-qr-scanner';
 
 @Component({
   selector: 'app-scan',
@@ -319,7 +319,7 @@ All 15 variables, 18 parts and 8 slots are listed in **[docs/CUSTOMIZE.md](docs/
 ### 8. 🧪 Headless Mode: Your Own UI, Continuous Checkout Scanning
 
 ```ts
-import { QRScanner } from 'kqrcode';
+import { QRScanner } from 'k-qr-scanner';
 
 const video = document.querySelector('video')!;
 const scanner = new QRScanner({
@@ -392,7 +392,7 @@ if (text.startsWith('000201')) {
 ```
 
 * **HTTPS**: browsers only allow the camera on secure origins (`localhost` works in development).
-* **CSP**: allow `worker-src blob:` and `script-src 'wasm-unsafe-eval'`. Run `npx kqrcode doctor` to check.
+* **CSP**: allow `worker-src blob:` and `script-src 'wasm-unsafe-eval'`. Run `npx k-qr-scanner doctor` to check.
 * **Preload**: call `QRScanner.preload()` when your scan button appears. It downloads and compiles the engine, so the first scan opens instantly.
 * **Self-hosting the `<script>` build**: serve `kqrcode.global.js`, `kqrcode.engine.js` and `kqrcode.jsqr.js` from the same directory.
 * **WebGPU super-resolution**: self-host ONNX Runtime Web and set `onnx-runtime-url` if you don't want third-party script loads.
@@ -436,9 +436,9 @@ Headless `QRScanner`, every option and every type: **[docs/API.md](docs/API.md)*
 
 | Command | Description |
 | :--- | :--- |
-| `npx kqrcode init` | Detect the framework (Next, Nuxt, SvelteKit, Svelte, Angular, Vue, React Native / Expo, React, vanilla) and package manager (npm, pnpm, yarn, bun), install kqrcode and write a starter component. React Native: also installs `react-native-webview` and writes the camera permission entries |
-| `npx kqrcode init --theme alipay --locale lo` | Same, with a theme and language baked in |
-| `npx kqrcode doctor` | Check the Node version, the installation, framework-specific setup and a CSP that would block workers or WebAssembly |
+| `npx k-qr-scanner init` | Detect the framework (Next, Nuxt, SvelteKit, Svelte, Angular, Vue, React Native / Expo, React, vanilla) and package manager (npm, pnpm, yarn, bun), install kqrcode and write a starter component. React Native: also installs `react-native-webview` and writes the camera permission entries |
+| `npx k-qr-scanner init --theme alipay --locale lo` | Same, with a theme and language baked in |
+| `npx k-qr-scanner doctor` | Check the Node version, the installation, framework-specific setup and a CSP that would block workers or WebAssembly |
 
 ---
 

@@ -14,9 +14,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
-- **React Native** (`kqrcode/react-native`): a `<QRScanner>` component for iOS, Android and Expo. It runs the same scanner in `react-native-webview` with the engine bundled (works offline), and carries over every prop, `accept`, `formats` and events. Extras: `cssVars`, HTML `slots` with `onSlotPress`, `keepCamera`, `scriptUrl`, and ref methods. The component asks for the Android camera permission itself, releases the camera while the app is in the background, and reloads if the OS kills the WebView process.
-- **Expo config plugin**: `"plugins": ["kqrcode"]` adds the iOS and Android camera permission entries (`cameraPermission` sets the iOS text).
-- `npx kqrcode init` for React Native / Expo installs `react-native-webview`, writes the camera permission entries (the Expo plugin in app.json, or Info.plist + AndroidManifest.xml) and a starter component; `doctor` checks them.
+- **React Native** (`k-qr-scanner/react-native`): a `<QRScanner>` component for iOS, Android and Expo. It runs the same scanner in `react-native-webview` with the engine bundled (works offline), and carries over every prop, `accept`, `formats` and events. Extras: `cssVars`, HTML `slots` with `onSlotPress`, `keepCamera`, `scriptUrl`, and ref methods. The component asks for the Android camera permission itself, releases the camera while the app is in the background, and reloads if the OS kills the WebView process.
+- **Expo config plugin**: `"plugins": ["k-qr-scanner"]` adds the iOS and Android camera permission entries (`cameraPermission` sets the iOS text).
+- `npx k-qr-scanner init` for React Native / Expo installs `react-native-webview`, writes the camera permission entries (the Expo plugin in app.json, or Info.plist + AndroidManifest.xml) and a starter component; `doctor` checks them.
 - `<kqr-scanner>`: read-only `active` property; `resume()` reopens the camera when it was already stopped.
 - **Every QR format**: Micro QR (M1–M4) and rMQR are read alongside QR Code (Model 1 and 2). `ScanResult.format` is now `'qr_code' | 'micro_qr_code' | 'rm_qr_code'`, and results carry `version` and `ecLevel`. Auto-zoom and tracking use the real module count of each symbol.
 - `formats` option (`scanQR`, `QRScanner`, wrappers) and `formats` attribute to limit which QR-family members are read. `QR_FORMATS` lists them.
@@ -45,7 +45,7 @@ First public release.
 - Themes `wechat`, `alipay`, `grid`, `frame` and `none`, plus CSS variables, `::part()` and slots.
 - `scanQR()` one-call API and the headless `QRScanner` class.
 - React, Vue and Svelte wrappers; Angular and plain HTML through the custom element; SSR-safe imports.
-- `npx kqrcode init` and `npx kqrcode doctor` CLI.
+- `npx k-qr-scanner init` and `npx k-qr-scanner doctor` CLI.
 - English, Lao and Chinese labels.
 
 [Unreleased]: https://github.com/kris-lx/kqrcode/compare/v0.1.0...HEAD

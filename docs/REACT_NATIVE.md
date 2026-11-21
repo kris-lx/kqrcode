@@ -1,6 +1,6 @@
 # React Native
 
-`kqrcode/react-native` gives iOS and Android apps, Expo included, the same scanner as the web: themes, auto-zoom, Micro QR and rMQR, the `accept` callback and album import.
+`k-qr-scanner/react-native` gives iOS and Android apps, Expo included, the same scanner as the web: themes, auto-zoom, Micro QR and rMQR, the `accept` callback and album import.
 
 ## How it works
 
@@ -11,41 +11,41 @@ The engine is bundled with the component (about 0.8 MB raw, 0.5 MB gzip), so the
 ## Install
 
 ```bash
-npx kqrcode init
+npx k-qr-scanner init
 ```
 
 That one command detects React Native or Expo and does the whole setup:
 
-- installs `kqrcode` and `react-native-webview` (`npx expo install` on Expo, so the version matches your SDK);
+- installs `k-qr-scanner` and `react-native-webview` (`npx expo install` on Expo, so the version matches your SDK);
 - writes the camera permission entries (see below);
 - writes a starter `components/QrScanner`.
 
 Then run `cd ios && pod install` (bare React Native) and rebuild the app. Expo Go works without a rebuild.
 
-By hand: `npm install kqrcode react-native-webview`, then add the permission entries yourself.
+By hand: `npm install k-qr-scanner react-native-webview`, then add the permission entries yourself.
 
 ## Camera permission
 
-Two entries are needed, and `npx kqrcode init` writes them:
+Two entries are needed, and `npx k-qr-scanner init` writes them:
 
 | app | what is added |
 |---|---|
-| Expo | `"plugins": ["kqrcode"]` in `app.json`. The plugin adds both entries on `expo prebuild` / EAS Build. |
+| Expo | `"plugins": ["k-qr-scanner"]` in `app.json`. The plugin adds both entries on `expo prebuild` / EAS Build. |
 | bare iOS | `NSCameraUsageDescription` in `ios/<App>/Info.plist`. Without it, iOS ends the app when the camera opens. |
 | bare Android | `<uses-permission android:name="android.permission.CAMERA" />` in `android/app/src/main/AndroidManifest.xml` |
 
-To set your own iOS prompt text with Expo: `"plugins": [["kqrcode", { "cameraPermission": "Scan QR codes to pay" }]]`.
+To set your own iOS prompt text with Expo: `"plugins": [["k-qr-scanner", { "cameraPermission": "Scan QR codes to pay" }]]`.
 
 There is no permission code to write. On Android the component asks for the runtime permission before it opens the WebView. iOS asks by itself when the camera starts, and only once (`mediaCapturePermissionGrantType` skips the second, web-level prompt). If the user says no, the scanner shows its "camera blocked" screen and `onError` gets `permission-denied`.
 
-`npx kqrcode doctor` checks the WebView dependency and both permission entries.
+`npx k-qr-scanner doctor` checks the WebView dependency and both permission entries.
 
 ## Usage
 
 ```tsx
 import { useRef, useState } from 'react';
 import { Button, Modal } from 'react-native';
-import { QRScanner, type QRScannerHandle } from 'kqrcode/react-native';
+import { QRScanner, type QRScannerHandle } from 'k-qr-scanner/react-native';
 
 export function PayScreen() {
   const [open, setOpen] = useState(false);
@@ -108,7 +108,7 @@ The defaults are tuned, so most apps need no `webViewProps`:
 ## Loading from a URL
 
 ```tsx
-<QRScanner scriptUrl="https://cdn.jsdelivr.net/npm/kqrcode@0.1.0/dist/kqrcode.global.js" … />
+<QRScanner scriptUrl="https://cdn.jsdelivr.net/npm/k-qr-scanner@0.1.0/dist/kqrcode.global.js" … />
 ```
 
 `kqrcode.engine.js` must sit next to it, as it does on jsDelivr and unpkg. Pin the version. This needs network, and the bundled copy stays in your app either way.

@@ -5,14 +5,14 @@
 - [`QRScanner` (headless)](#qrscanner-headless)
 - [Types](#types)
 - [Framework wrappers](#framework-wrappers)
-- [`kqrcode/sr`](#kqrcodesr)
+- [`k-qr-scanner/sr`](#k-qr-scannersr)
 
 ---
 
 ## `scanQR(options)`
 
 ```ts
-import { scanQR } from 'kqrcode';
+import { scanQR } from 'k-qr-scanner';
 function scanQR(options?: ScanQROptions): Promise<ScanResult>;
 ```
 
@@ -48,7 +48,7 @@ Opens the full-screen scanner, resolves with the first result and removes the el
 
 ## `<kqr-scanner>` element
 
-Importing `kqrcode` (or any wrapper) registers the element. Registration is skipped on the server.
+Importing `k-qr-scanner` (or any wrapper) registers the element. Registration is skipped on the server.
 
 ### Attributes
 
@@ -107,7 +107,7 @@ Styling (themes, CSS variables, `::part()`, slots): [CUSTOMIZE.md](CUSTOMIZE.md)
 Bring your own `<video>` and UI.
 
 ```ts
-import { QRScanner } from 'kqrcode';
+import { QRScanner } from 'k-qr-scanner';
 
 const scanner = new QRScanner({ video: document.querySelector('video')! });
 scanner.on('result', (r) => console.log(r.text));
@@ -214,10 +214,10 @@ type AcceptFn = (r: ScanResult) => boolean | string | void | Promise<boolean | s
 
 | import | export | notes |
 |---|---|---|
-| `kqrcode/react` | `<QRScanner>` | props = attributes in camelCase plus `onScan`, `onError`, `onClose`, `onReady`; children are slotted; ships with `'use client'` |
-| `kqrcode/vue` | `<QRScanner>` | props in camelCase; emits `scan`, `error`, `close`, `ready`; default slot is passed through |
-| `kqrcode/svelte` | `use:qrScanner={options}` | action; children with `data-slot="…"` are slotted |
-| `kqrcode/react-native` | `<QRScanner>` | iOS / Android / Expo via `react-native-webview`; same props plus `cssVars`, `slots` (HTML strings), `onSlotPress`, `keepCamera`, `scriptUrl`, `webViewProps`; see [REACT_NATIVE.md](REACT_NATIVE.md) |
+| `k-qr-scanner/react` | `<QRScanner>` | props = attributes in camelCase plus `onScan`, `onError`, `onClose`, `onReady`; children are slotted; ships with `'use client'` |
+| `k-qr-scanner/vue` | `<QRScanner>` | props in camelCase; emits `scan`, `error`, `close`, `ready`; default slot is passed through |
+| `k-qr-scanner/svelte` | `use:qrScanner={options}` | action; children with `data-slot="…"` are slotted |
+| `k-qr-scanner/react-native` | `<QRScanner>` | iOS / Android / Expo via `react-native-webview`; same props plus `cssVars`, `slots` (HTML strings), `onSlotPress`, `keepCamera`, `scriptUrl`, `webViewProps`; see [REACT_NATIVE.md](REACT_NATIVE.md) |
 
 Examples for each framework: [FRAMEWORKS.md](FRAMEWORKS.md).
 
@@ -233,6 +233,6 @@ Small or blurry codes that still fail are upscaled with WeChat's super-resolutio
 | `'webgpu'` | ONNX Runtime Web: WebGPU, falling back to WASM, then to `'js'` | loads ONNX Runtime from `onnxRuntimeUrl` |
 | `'off'` | – | – |
 
-## `kqrcode/sr`
+## `k-qr-scanner/sr`
 
-The model on its own, for your own pipelines: `superResolve(gray, h, w)`, `createOnnxSuperRes(ort, providers)` and `srModelBytes()`. The ONNX file is also published as `kqrcode/models/wechat_sr.onnx`.
+The model on its own, for your own pipelines: `superResolve(gray, h, w)`, `createOnnxSuperRes(ort, providers)` and `srModelBytes()`. The ONNX file is also published as `k-qr-scanner/models/wechat_sr.onnx`.

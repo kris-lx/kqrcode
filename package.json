@@ -1,5 +1,5 @@
 {
-  "name": "kqrcode",
+  "name": "k-qr-scanner",
   "version": "0.1.0",
   "description": "Fast full-screen QR code scanner for the web – scans anywhere in view, any angle, long range with auto-zoom. React, React Native, Vue, Svelte, Angular, plain HTML.",
   "author": "kris",
@@ -21,7 +21,7 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "kqrcode": "./dist/cli.js"
+    "k-qr-scanner": "./dist/cli.js"
   },
   "exports": {
     ".": {

@@ -1,4 +1,4 @@
-/** Expo config plugin for kqrcode/react-native: adds the iOS and Android camera permission entries. */
+/** Expo config plugin for k-qr-scanner/react-native: adds the iOS and Android camera permission entries. */
 export interface KqrcodePluginProps {
   /** iOS NSCameraUsageDescription. Default: "Allow $(PRODUCT_NAME) to use the camera to scan QR codes". */
   cameraPermission?: string;
