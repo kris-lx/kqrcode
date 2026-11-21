@@ -1,0 +1,6 @@
+{
+  "name": "kqrcode-react-native",
+  "private": true,
+  "main": "../dist/rn/index.js",
+  "types": "../dist/react-native.d.ts"
+}

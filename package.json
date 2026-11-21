@@ -1,7 +1,7 @@
 {
   "name": "kqrcode",
   "version": "0.1.0",
-  "description": "Fast full-screen QR code scanner for the web – scans anywhere in view, any angle, long range with auto-zoom. React, Vue, Svelte, Angular, plain HTML.",
+  "description": "Fast full-screen QR code scanner for the web – scans anywhere in view, any angle, long range with auto-zoom. React, React Native, Vue, Svelte, Angular, plain HTML.",
   "author": "kris",
   "repository": {
     "type": "git",
@@ -44,15 +44,26 @@
       "import": "./dist/svelte.js",
       "require": "./dist/svelte.cjs"
     },
+    "./react-native": {
+      "types": "./dist/react-native.d.ts",
+      "default": "./dist/rn/index.js"
+    },
     "./sr": {
       "types": "./dist/sr-entry.d.ts",
       "import": "./dist/sr.js",
       "require": "./dist/sr.cjs"
     },
-    "./models/wechat_sr.onnx": "./models/wechat_sr.onnx"
+    "./models/wechat_sr.onnx": "./models/wechat_sr.onnx",
+    "./app.plugin.js": {
+      "types": "./app.plugin.d.ts",
+      "default": "./app.plugin.js"
+    }
   },
   "files": [
     "dist",
+    "react-native/package.json",
+    "app.plugin.js",
+    "app.plugin.d.ts",
     "models/wechat_sr.onnx",
     "docs/*.md",
     "README.md",
@@ -72,13 +83,21 @@
   },
   "peerDependencies": {
     "react": ">=17",
-    "vue": ">=3"
+    "vue": ">=3",
+    "react-native": ">=0.72",
+    "react-native-webview": ">=13"
   },
   "peerDependenciesMeta": {
     "react": {
       "optional": true
     },
     "vue": {
+      "optional": true
+    },
+    "react-native": {
+      "optional": true
+    },
+    "react-native-webview": {
       "optional": true
     }
   },
@@ -116,6 +135,7 @@
     "react",
     "vue",
     "svelte",
+    "react-native",
     "angular"
   ],
   "engines": {

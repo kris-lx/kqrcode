@@ -1,13 +1,23 @@
 import { createElement, forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { defineScannerElement, TAG_NAME, type KQRScannerElement, type ScannerLabels, type ScannerTheme } from './element';
-import type { ScanError, ScanResult } from './scanner';
+import type { AcceptFn, ScanError, ScanResult } from './scanner';
+import type { QRFormat } from './formats';
 
 export interface QRScannerProps {
   onScan?: (result: ScanResult) => void;
   onError?: (error: ScanError) => void;
   onClose?: () => void;
   onReady?: () => void;
+  /** A code was turned down by `accept`. */
+  onReject?: (result: ScanResult, message?: string) => void;
+  /**
+   * Check a code before onScan fires: true (or nothing) accepts, false ignores it and keeps
+   * scanning, a string ignores it and shows that string. May be async.
+   */
+  accept?: AcceptFn;
+  /** QR-family members to read. Default: all – 'qr_code', 'micro_qr_code', 'rm_qr_code'. */
+  formats?: QRFormat[];
   facing?: 'environment' | 'user';
   continuous?: boolean;
   inline?: boolean;
@@ -56,12 +66,20 @@ export const QRScanner = forwardRef<KQRScannerElement | null, QRScannerProps>(fu
     const err = (e: Event) => cb.current.onError?.((e as CustomEvent<ScanError>).detail);
     const close = () => cb.current.onClose?.();
     const ready = () => cb.current.onReady?.();
+    const reject = (e: Event) => {
+      const d = (e as CustomEvent<{ result: ScanResult; message?: string }>).detail;
+      cb.current.onReject?.(d.result, d.message);
+    };
+    // always the latest accept prop, without restarting the camera when it changes
+    node.accept = (r) => (cb.current.accept ? cb.current.accept(r) : true);
     node.addEventListener('scan', scan);
+    node.addEventListener('reject', reject);
     node.addEventListener('error', err);
     node.addEventListener('close', close);
     node.addEventListener('ready', ready);
     return () => {
       node.removeEventListener('scan', scan);
+      node.removeEventListener('reject', reject);
       node.removeEventListener('error', err);
       node.removeEventListener('close', close);
       node.removeEventListener('ready', ready);
@@ -76,6 +94,7 @@ export const QRScanner = forwardRef<KQRScannerElement | null, QRScannerProps>(fu
     ref: el, style: props.style, class: props.className,
     facing: props.facing, locale: props.locale, 'max-zoom': props.maxZoom, 'super-resolution': props.superResolution,
     theme: props.theme, heading: props.heading, success: props.success, torch: props.torch, 'zoom-control': props.zoomControl,
+    formats: props.formats?.join(' '),
   };
   const flags: [string, boolean | undefined][] = [
     ['continuous', props.continuous], ['inline', props.inline], ['no-auto-zoom', props.noAutoZoom],

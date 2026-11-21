@@ -4,7 +4,7 @@
  *   npx kqrcode init      detect framework + package manager, install kqrcode, add a starter component
  *   npx kqrcode doctor    check the project setup
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
@@ -20,7 +20,7 @@ const c = (code: number) => (s: string) => (tty ? `\x1b[${code}m${s}\x1b[0m` : s
 const bold = c(1), dim = c(2), green = c(32), yellow = c(33), red = c(31), cyan = c(36);
 const log = (s = '') => process.stdout.write(s + '\n');
 
-type Framework = 'next' | 'nuxt' | 'sveltekit' | 'svelte' | 'angular' | 'vue' | 'react' | 'vanilla';
+type Framework = 'next' | 'nuxt' | 'sveltekit' | 'svelte' | 'angular' | 'vue' | 'react-native' | 'react' | 'vanilla';
 type PM = 'npm' | 'pnpm' | 'yarn' | 'bun';
 const THEMES = ['wechat', 'alipay', 'grid', 'frame', 'none'];
 
@@ -73,6 +73,7 @@ export function detectFramework(pkg: Record<string, any> | null): Framework {
   if (d.svelte) return 'svelte';
   if (d['@angular/core']) return 'angular';
   if (d.vue) return 'vue';
+  if (d['react-native'] || d.expo) return 'react-native';
   if (d.react) return 'react';
   return 'vanilla';
 }
@@ -116,6 +117,33 @@ export default function QrScanner({ onResult, onClose }${props}) {
       onScan={(result) => onResult(result.text)}
       onClose={onClose}
     />
+  );
+}
+`,
+        usage: `{open && <QrScanner onResult={(text) => { setOpen(false); console.log(text); }} onClose={() => setOpen(false)} />}`,
+      };
+    }
+    case 'react-native': {
+      const file = `${src}components/QrScanner.${ts ? 'tsx' : 'jsx'}`;
+      const props = ts ? ': { onResult: (text: string) => void; onClose?: () => void }' : '';
+      return {
+        file,
+        code: `import { Modal } from 'react-native';
+import { QRScanner } from 'kqrcode/react-native';
+
+/** Full-screen QR scanner. Render it when you want to scan, unmount it to close. */
+export default function QrScanner({ onResult, onClose }${props}) {
+  // The camera permission prompt (iOS and Android) is handled by QRScanner.
+  return (
+    <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
+      <QRScanner
+        style={{ flex: 1 }}
+        theme="${theme}"
+        locale="${locale}"
+        onScan={(result) => onResult(result.text)}
+        onClose={onClose}
+      />
+    </Modal>
   );
 }
 `,
@@ -247,6 +275,16 @@ function init(a: Args): number {
       if (r.status !== 0) { log(red(`✖ ${bin} failed (exit ${r.status}).`)); return r.status ?? 1; }
     }
     log(green('✔ installed kqrcode'));
+    if (fw === 'react-native' && !deps['react-native-webview']) {
+      // Expo picks the react-native-webview version that matches the SDK
+      const [wb, wa]: [string, string[]] = deps.expo ? ['npx', ['expo', 'install', 'react-native-webview']] : installCmd(pm, 'react-native-webview');
+      log(`${dim('$')} ${wb} ${wa.join(' ')}`);
+      if (!a.dryRun) {
+        const r = spawnSync(`${wb} ${wa.map((x) => `"${x}"`).join(' ')}`, { cwd: a.cwd, stdio: 'inherit', shell: true });
+        if (r.status !== 0) { log(red(`✖ ${wb} failed (exit ${r.status}).`)); return r.status ?? 1; }
+      }
+      log(green('✔ installed react-native-webview'));
+    }
   }
 
   // 2) starter component
@@ -263,13 +301,79 @@ function init(a: Args): number {
     log(green(`✔ created ${shown}`));
   }
 
-  // 3) next steps
+  // 3) camera permission entries (React Native)
+  if (fw === 'react-native') nativeSetup(a.cwd, !!deps.expo, a.dryRun);
+
+  // 4) next steps
   log('');
   log(bold('Next steps'));
   log(`  Use it:  ${t.usage}`);
-  log(`  Camera access needs ${bold('HTTPS')} (localhost is fine during development).`);
+  if (fw === 'react-native') {
+    if (deps.expo) log(`  Expo Go works as is. Development / EAS builds: ${dim('npx expo prebuild')} picks up the plugin.`);
+    else log(`  iOS:  ${dim('cd ios && pod install')}, then rebuild the app.`);
+    log(`  Guide: ${cyan('https://github.com/kris-lx/kqrcode/blob/main/docs/REACT_NATIVE.md')}`);
+  } else log(`  Camera access needs ${bold('HTTPS')} (localhost is fine during development).`);
   log(`  Themes, slots and options: ${cyan('https://github.com/kris-lx/kqrcode#readme')}`);
   return 0;
+}
+
+const IOS_CAMERA = 'Allow $(PRODUCT_NAME) to use the camera to scan QR codes';
+const ANDROID_CAMERA = '<uses-permission android:name="android.permission.CAMERA" />';
+
+/** Native Info.plist files of a bare React Native app (ios/<App>/Info.plist). */
+function plistFiles(cwd: string): string[] {
+  try {
+    return readdirSync(join(cwd, 'ios')).map((x) => `ios/${x}/Info.plist`).filter((f) => existsSync(join(cwd, f)));
+  } catch { return []; }
+}
+
+/** Expo app.json that lists the kqrcode config plugin. */
+const hasExpoPlugin = (appJson: string | null) => !!appJson && /["']kqrcode["']/.test(appJson);
+
+/**
+ * Writes the camera permission entries, so a fresh app runs without manual native edits:
+ * Expo → the "kqrcode" config plugin in app.json; bare → Info.plist + AndroidManifest.xml.
+ */
+function nativeSetup(cwd: string, expo: boolean, dryRun: boolean): void {
+  const read = (f: string) => (existsSync(join(cwd, f)) ? readFileSync(join(cwd, f), 'utf8') : null);
+  const write = (f: string, text: string, what: string) => { if (!dryRun) writeFileSync(join(cwd, f), text); log(green(`✔ ${what}`)); };
+  if (expo) {
+    const raw = read('app.json');
+    if (raw === null) {
+      log(yellow(`! add ${bold('"plugins": ["kqrcode"]')} to your app config (no app.json found)`));
+      return;
+    }
+    if (hasExpoPlugin(raw)) { log(green('✔ app.json already uses the kqrcode plugin')); return; }
+    let json: { expo?: { plugins?: unknown[] } } & Record<string, unknown>;
+    try { json = JSON.parse(raw); } catch { log(yellow(`! app.json is not valid JSON – add ${bold('"plugins": ["kqrcode"]')} by hand`)); return; }
+    const root = (json.expo ?? json) as { plugins?: unknown[] };
+    root.plugins = [...(root.plugins ?? []), 'kqrcode'];
+    const indent = raw.match(/^[ \t]+/m)?.[0] ?? '  ';
+    write('app.json', JSON.stringify(json, null, indent) + '\n', 'added the kqrcode plugin to app.json (camera permission on iOS + Android)');
+    return;
+  }
+  const plists = plistFiles(cwd);
+  if (!plists.length) log(yellow('! no ios/<App>/Info.plist found – add NSCameraUsageDescription yourself'));
+  for (const f of plists) {
+    const text = read(f)!;
+    if (text.includes('NSCameraUsageDescription')) { log(green(`✔ ${f} already has NSCameraUsageDescription`)); continue; }
+    const at = text.lastIndexOf('</dict>');
+    if (at < 0) { log(yellow(`! could not edit ${f} – add NSCameraUsageDescription yourself`)); continue; }
+    const entry = `\t<key>NSCameraUsageDescription</key>\n\t<string>${IOS_CAMERA}</string>\n`;
+    write(f, text.slice(0, at) + entry + text.slice(at), `added NSCameraUsageDescription to ${f}`);
+  }
+  const mf = 'android/app/src/main/AndroidManifest.xml';
+  const manifest = read(mf);
+  if (manifest === null) log(yellow(`! no ${mf} found – add the CAMERA permission yourself`));
+  else if (manifest.includes('android.permission.CAMERA')) log(green(`✔ ${mf} already has the CAMERA permission`));
+  else {
+    const open = manifest.match(/<manifest\b[^>]*>/);
+    if (!open) log(yellow(`! could not edit ${mf} – add ${ANDROID_CAMERA} yourself`));
+    else {
+      const at = open.index! + open[0].length;
+      write(mf, manifest.slice(0, at) + `\n    ${ANDROID_CAMERA}` + manifest.slice(at), `added the CAMERA permission to ${mf}`);
+    }
+  }
 }
 
 function doctor(a: Args): number {
@@ -299,6 +403,20 @@ function doctor(a: Args): number {
   if (fw === 'vue' || fw === 'nuxt') {
     warn('If you use the raw <kqr-scanner> tag in Vue templates (instead of kqrcode/vue), add it to compilerOptions.isCustomElement');
   }
+  if (fw === 'react-native') {
+    if (!d['react-native-webview']) bad('react-native-webview is missing – run: ' + (d.expo ? 'npx expo install react-native-webview' : 'npm install react-native-webview'));
+    else ok('react-native-webview installed');
+    const read = (f: string) => (existsSync(join(a.cwd, f)) ? readFileSync(join(a.cwd, f), 'utf8') : null);
+    const appJson = read('app.json') ?? read('app.config.js') ?? read('app.config.ts');
+    const plists = plistFiles(a.cwd).map((f) => read(f)!);
+    const manifest = read('android/app/src/main/AndroidManifest.xml');
+    const plugin = hasExpoPlugin(appJson);
+    const iosOk = plugin || plists.some((p) => p.includes('NSCameraUsageDescription')) || !!appJson?.includes('NSCameraUsageDescription');
+    const androidOk = plugin || !!manifest?.includes('android.permission.CAMERA') || /["']CAMERA["']|android\.permission\.CAMERA/.test(appJson ?? '');
+    const fix = 'run: npx kqrcode init --no-install';
+    if (plists.length || appJson) iosOk ? ok('iOS camera usage description set') : bad(`iOS: NSCameraUsageDescription is missing (the app crashes when the camera opens) – ${fix}`);
+    if (manifest || appJson) androidOk ? ok('Android CAMERA permission declared') : bad(`Android: android.permission.CAMERA is not declared – ${fix}`);
+  }
   if (fw === 'angular') warn('Add CUSTOM_ELEMENTS_SCHEMA to components that use <kqr-scanner>');
   if (fw === 'nuxt') warn('Render the scanner client-side only: <ClientOnly> or a *.client.vue component');
 
@@ -326,13 +444,13 @@ ${bold('Usage')}
   npx kqrcode doctor             check the project setup
 
 ${bold('Options for init')}
-  --framework <name>   next | nuxt | sveltekit | svelte | angular | vue | react | vanilla  (auto-detected)
+  --framework <name>   next | nuxt | sveltekit | svelte | angular | vue | react-native | react | vanilla  (auto-detected)
   --pm <name>          npm | pnpm | yarn | bun  (auto-detected from the lockfile)
   --theme <name>       ${THEMES.join(' | ')}  (default: wechat)
   --locale <code>      en | lo | zh  (default: en)
   --out <path>         where to write the component (default depends on the framework)
   --from <spec>        install from a version, tag or tarball instead of "kqrcode"
-  --no-install         only create the component
+  --no-install         skip installing packages (still writes the component and, for React Native, the camera permission)
   --force              overwrite an existing component file
   --dry-run            show what would happen
   --cwd <dir>          project directory (default: current directory)

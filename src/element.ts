@@ -9,8 +9,9 @@
  *   4. <slot>s                – replace / add buttons, tabs, hint, error UI
  *   5. headless QRScanner     – build your own UI from scratch
  */
-import { QRScanner, ScanError, type ScanResult } from './scanner';
+import { QRScanner, ScanError, type AcceptFn, type ScanResult } from './scanner';
 import type { QRHint } from './engine';
+import { QR_FORMATS, type QRFormat } from './formats';
 
 export interface ScannerLabels {
   hint: string;
@@ -213,12 +214,21 @@ input[type=file]{display:none}
 const Base: typeof HTMLElement = (typeof HTMLElement === 'undefined' ? class {} : HTMLElement) as typeof HTMLElement;
 
 export class KQRScannerElement extends Base {
-  static observedAttributes = ['locale', 'heading', 'torch', 'zoom-control'];
+  static observedAttributes = ['locale', 'heading', 'torch', 'zoom-control', 'formats'];
 
   /** Override any label (merged over the current locale). */
   labels: Partial<ScannerLabels> = {};
   /** Underlying headless scanner (available after start()). */
   scanner: QRScanner | null = null;
+
+  /**
+   * Check a decoded code before it counts: return true (or nothing) to accept, false to ignore it
+   * and keep scanning, or a string to ignore it and show that string as a message. May be async.
+   *   el.accept = (r) => r.text.startsWith('000201') || 'Not a payment QR';
+   */
+  get accept(): AcceptFn | undefined { return this._accept; }
+  set accept(fn: AcceptFn | undefined) { this._accept = fn; this.scanner?.setAccept(fn); }
+  private _accept: AcceptFn | undefined;
 
   private root!: ShadowRoot;
   private $: Record<string, HTMLElement> = {};
@@ -237,6 +247,7 @@ export class KQRScannerElement extends Base {
   private msgTimer = 0;
   private stopTimer = 0;
   private started = false;
+  private rejectedAt = -1;
 
   /* ---- attribute helpers ---- */
   private flag(name: string) { return this.hasAttribute(name) && this.getAttribute(name) !== 'false'; }
@@ -325,6 +336,7 @@ export class KQRScannerElement extends Base {
     if (!this.root) return;
     if (name === 'locale' || name === 'heading') this.applyLabels();
     if (name === 'torch') this.updateTorchButton();
+    if (name === 'formats') this.scanner?.setFormats(this.formats);
     if (name === 'zoom-control' && this.scanner) this.onZoom({ zoom: this.scanner.zoom, min: this.scanner.zoomMin, max: this.scanner.zoomMax, auto: false, digital: this.scanner.isDigitalZoom });
   }
 
@@ -351,8 +363,11 @@ export class KQRScannerElement extends Base {
       continuous: this.flag('continuous'),
       superResolution: sr === 'off' || sr === 'false' ? false : sr === 'webgpu' ? 'webgpu' : 'js',
       ...(this.getAttribute('onnx-runtime-url') ? { onnxRuntimeUrl: this.getAttribute('onnx-runtime-url')! } : {}),
+      formats: this.formats,
+      accept: this._accept,
     }));
     s.on('result', (r) => this.onResult(r));
+    s.on('reject', (r) => this.onReject(r));
     s.on('error', (e) => this.onError(e));
     s.on('zoom', (z) => this.onZoom(z));
     s.on('hint', (h) => { this.lastDraw = { hint: h.hint, decoded: h.decoded, vw: h.videoWidth, vh: h.videoHeight }; this.redraw(); });
@@ -382,8 +397,12 @@ export class KQRScannerElement extends Base {
     this.dispatchEvent(new CustomEvent('close'));
   }
 
-  /** Resume scanning after a result (with keep-camera / continuous). */
+  /** True while the camera is running (between start() and stop()). */
+  get active(): boolean { return this.started; }
+
+  /** Scan again after a result. Restarts the camera if it was already stopped. */
   resume() {
+    if (!this.started) { void this.start(); return; }
     this.removeAttribute('found');
     this.$.dot.classList.remove('go');
     void this.video.play().catch(() => {});
@@ -406,7 +425,21 @@ export class KQRScannerElement extends Base {
     return false;
   }
 
+  /** formats="qr_code micro_qr_code rm_qr_code" (space or comma separated); default: all. */
+  private get formats(): QRFormat[] | undefined {
+    const raw = this.getAttribute('formats');
+    if (!raw) return undefined;
+    const list = raw.split(/[\s,]+/).filter((f): f is QRFormat => (QR_FORMATS as readonly string[]).includes(f));
+    return list.length ? list : undefined;
+  }
+
   /* ---------------- handlers ---------------- */
+
+  private onReject(e: { result: ScanResult; message?: string }) {
+    this.rejectedAt = performance.now();
+    if (e.message) this.say(e.message, 2500, true);
+    this.dispatchEvent(new CustomEvent('reject', { detail: e, bubbles: true, composed: true }));
+  }
 
   private onResult(r: ScanResult) {
     this.setAttribute('found', '');
@@ -480,12 +513,14 @@ export class KQRScannerElement extends Base {
     const f = input.files?.[0];
     input.value = '';
     if (!f) return;
-    const temp = this.scanner ? null : new QRScanner({ video: this.video });
+    const temp = this.scanner ? null : new QRScanner({ video: this.video, formats: this.formats, accept: this._accept });
+    temp?.on('reject', (r) => this.onReject(r));
     const scanner = this.scanner ?? temp!;
+    const t0 = performance.now();
     try {
       const r = await scanner.scanImage(f);
       if (r) this.onResult(r);
-      else this.say(this.L.noQrInImage, 2500, true);
+      else if (this.rejectedAt < t0) this.say(this.L.noQrInImage, 2500, true); // a turned-down code already showed its own message
     } catch { this.say(this.L.noQrInImage, 2500, true); }
     finally { temp?.stop(); } // terminate the temporary worker
   }

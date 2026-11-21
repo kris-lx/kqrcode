@@ -24,6 +24,8 @@ const cases: [string, Record<string, string>, Record<string, string>, string, Re
   ['vue', { vue: '3' }, {}, 'src/components/QrScanner.vue', /from 'kqrcode\/vue'/],
   ['sveltekit', { '@sveltejs/kit': '2', svelte: '5' }, {}, 'src/lib/QrScanner.svelte', /from 'kqrcode\/svelte'/],
   ['angular', { '@angular/core': '19' }, {}, 'src/app/qr-scanner.component.ts', /<kqr-scanner[\s\S]*CUSTOM_ELEMENTS_SCHEMA|CUSTOM_ELEMENTS_SCHEMA[\s\S]*<kqr-scanner/],
+  ['react-native', { 'react-native': '0.80', react: '19' }, { 'tsconfig.json': '{}' }, 'components/QrScanner.tsx', /^(?![\s\S]*PermissionsAndroid)[\s\S]*from 'kqrcode\/react-native'/],
+  ['react-native', { expo: '54', 'react-native': '0.81', react: '19' }, {}, 'components/QrScanner.jsx', /from 'kqrcode\/react-native'/],
   ['vanilla', {}, {}, 'qr-scanner.js', /scanQR/],
 ];
 
@@ -71,4 +73,72 @@ test('doctor flags a CSP that blocks workers / WebAssembly', () => {
 test('--version and --help', () => {
   assert.match(run(tmpdir(), '--version').stdout, /^\d+\.\d+\.\d+/);
   assert.match(run(tmpdir(), '--help').stdout, /npx kqrcode init/);
+});
+
+test('init for React Native also installs react-native-webview (expo install on Expo)', () => {
+  const bare = run(project({ 'react-native': '0.80', react: '19' }, { 'yarn.lock': '' }), 'init', '--dry-run');
+  assert.match(bare.stdout, /\$ yarn add kqrcode[\s\S]*\$ yarn add react-native-webview/);
+  assert.match(bare.stdout, /pod install/);
+  const expo = run(project({ expo: '54', 'react-native': '0.81', react: '19' }), 'init', '--dry-run');
+  assert.match(expo.stdout, /\$ npx expo install react-native-webview/);
+});
+
+test('doctor checks the React Native camera setup', () => {
+  const dir = project({ 'react-native': '0.80', react: '19', kqrcode: '0.1.0' }, {
+    'android/app/src/main/AndroidManifest.xml': '<manifest></manifest>',
+    'ios/App/Info.plist': '<plist><key>NSCameraUsageDescription</key></plist>',
+  });
+  const r = run(dir, 'doctor');
+  assert.match(r.stdout, /react-native-webview is missing/);
+  assert.match(r.stdout, /iOS camera usage description set/);
+  assert.match(r.stdout, /Android: android\.permission\.CAMERA is not declared/);
+});
+
+const PLIST = `<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>App</string>
+</dict>
+</plist>
+`;
+const MANIFEST = `<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application android:name=".MainApplication" />
+</manifest>
+`;
+
+test('init writes the camera permission into a bare React Native app (once)', () => {
+  const dir = project({ 'react-native': '0.80', react: '19' }, {
+    'ios/App/Info.plist': PLIST, 'android/app/src/main/AndroidManifest.xml': MANIFEST,
+  });
+  const r = run(dir, 'init', '--no-install');
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const plist = readFileSync(join(dir, 'ios/App/Info.plist'), 'utf8');
+  assert.match(plist, /<key>NSCameraUsageDescription<\/key>\n\t<string>[^<]+<\/string>\n<\/dict>\n<\/plist>/);
+  const manifest = readFileSync(join(dir, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
+  assert.match(manifest, /<manifest [^>]+>\n {4}<uses-permission android:name="android\.permission\.CAMERA" \/>/);
+  run(dir, 'init', '--no-install');
+  assert.equal(readFileSync(join(dir, 'ios/App/Info.plist'), 'utf8'), plist, 'idempotent');
+  assert.equal(readFileSync(join(dir, 'android/app/src/main/AndroidManifest.xml'), 'utf8'), manifest, 'idempotent');
+  assert.match(run(dir, 'doctor').stdout, /iOS camera usage description set[\s\S]*Android CAMERA permission declared/);
+});
+
+test('init adds the kqrcode config plugin to an Expo app.json', () => {
+  const dir = project({ expo: '54', 'react-native': '0.81', react: '19' }, {
+    'app.json': JSON.stringify({ expo: { name: 'a', plugins: ['expo-router'] } }, null, 2),
+  });
+  assert.equal(run(dir, 'init', '--no-install').status, 0);
+  const app = JSON.parse(readFileSync(join(dir, 'app.json'), 'utf8'));
+  assert.deepEqual(app.expo.plugins, ['expo-router', 'kqrcode']);
+  run(dir, 'init', '--no-install');
+  assert.deepEqual(JSON.parse(readFileSync(join(dir, 'app.json'), 'utf8')).expo.plugins, ['expo-router', 'kqrcode']);
+  assert.match(run(dir, 'doctor').stdout, /iOS camera usage description set[\s\S]*Android CAMERA permission declared/);
+});
+
+test('init --dry-run leaves native files alone', () => {
+  const dir = project({ 'react-native': '0.80', react: '19' }, { 'ios/App/Info.plist': PLIST });
+  const r = run(dir, 'init', '--dry-run');
+  assert.match(r.stdout, /added NSCameraUsageDescription/);
+  assert.equal(readFileSync(join(dir, 'ios/App/Info.plist'), 'utf8'), PLIST);
 });

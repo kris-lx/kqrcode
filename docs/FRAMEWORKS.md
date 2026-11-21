@@ -153,6 +153,16 @@ export class ScanComponent {
 
 With Angular SSR the import is safe on the server; the element only activates in the browser.
 
+## React Native / Expo
+
+```tsx
+import { QRScanner } from 'kqrcode/react-native'; // npx kqrcode init: installs, adds camera permissions
+
+<QRScanner style={{ flex: 1 }} locale="lo" onScan={(r) => pay(r.text)} onClose={() => setOpen(false)} />
+```
+
+Expo: `"plugins": ["kqrcode"]` adds the camera permissions. Props and platform notes: [REACT_NATIVE.md](REACT_NATIVE.md).
+
 ## Plain HTML / CDN
 
 ```html

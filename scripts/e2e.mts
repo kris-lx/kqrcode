@@ -3,10 +3,13 @@ import { ROOT, TMP, chromeOpts } from './env.mts';
 import { chromium } from 'playwright-core';
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { render } from '../test/helpers.ts';
+import { render, renderSymbol } from '../test/helpers.ts';
 
 const W = 1280, H = 720, TEXT = 'https://pay.example.com/kpay?order=E2E-42';
-const img = render(TEXT, { module: 6, angle: 33, W, H, cx: 420, cy: 300 });
+// --micro: feed a Micro QR instead (checks the whole QR family end-to-end)
+const img = process.argv.includes('--micro')
+  ? await renderSymbol('MicroQRCode', 'KPAY:E2E-42', { module: 10, angle: 33, W, H, cx: 420, cy: 300 })
+  : render(TEXT, { module: 6, angle: 33, W, H, cx: 420, cy: 300 });
 // write y4m (gray → I420)
 const frames = 5;
 const head = Buffer.from(`YUV4MPEG2 W${W} H${H} F30:1 Ip A1:1 C420jpeg\n`);
@@ -41,6 +44,23 @@ const srv = createServer((req, res) => {
       window.__q = { text: r.text, left: document.querySelectorAll('kqr-scanner').length }; }
     catch (e) { window.__q = { err: String(e) }; }
   </script>`); return; }
+  if (url === '/accept') { // accept() turns the code down twice (once with a message), then accepts
+    res.setHeader('content-type', 'text/html; charset=utf-8');
+    res.end(`<!doctype html><body><script type="module">
+      import { scanQR } from '/dist/index.js';
+      const seen = []; let calls = 0;
+      scanQR({
+        accept: async (r) => { calls++; await new Promise((z) => setTimeout(z, 50)); return window.__allow ? true : 'Not our code'; },
+        onReject: (r, m) => seen.push(m),
+      }).then((r) => { window.__a = { text: r.text, format: r.format, version: r.version, calls, seen,
+        hint: null }; }, (e) => { window.__a = { err: String(e) }; });
+      setTimeout(() => {
+        const el = document.querySelector('kqr-scanner');
+        window.__mid = { calls, seen: [...seen], hint: el.shadowRoot.querySelector('.msg').textContent };
+        window.__allow = true;
+        el.scanner.resume(); // forget the cooldown so the code is offered again
+      }, 3000);
+    </script>`); return; }
   if (url === '/el') { res.setHeader('content-type', 'text/html'); res.end(`<!doctype html><meta name=viewport content="width=device-width,initial-scale=1"><body style="margin:0"><script type="module">
     import '/dist/index.js';
     const el = document.createElement('kqr-scanner'); el.setAttribute('locale','lo'); el.setAttribute('keep-camera','');
@@ -109,5 +129,49 @@ if (process.argv.includes('--scanqr')) {
   await p3.goto('http://localhost:5199/scanqr');
   await p3.waitForFunction(() => (window as any).__q, null, { timeout: 15000 }).catch(() => {});
   console.log('scanQR:', JSON.stringify(await p3.evaluate(() => (window as any).__q ?? null)));
+}
+if (process.argv.includes('--accept')) {
+  const p4 = await browser.newPage();
+  p4.on('pageerror', (e) => console.log('[pageerror]', e.message));
+  await p4.goto('http://localhost:5199/accept');
+  await p4.waitForFunction(() => (window as any).__a, null, { timeout: 20000 }).catch(() => {});
+  console.log('accept:', JSON.stringify(await p4.evaluate(() => ({ mid: (window as any).__mid, done: (window as any).__a ?? null }))));
+}
+if (process.argv.includes('--rn')) {
+  // React Native page (what react-native-webview loads), served at the same https origin, with a
+  // stand-in for window.ReactNativeWebView that answers accept requests like the RN side does.
+  const { buildPage } = await import('../src/rn-bridge.ts');
+  const { default: runtime } = await import('../src/rn-runtime.generated.ts');
+  const html = buildPage({ locale: 'lo', accept: true, cssVars: { '--kqr-accent': '#e60012' } }, { runtime });
+  const p5 = await browser.newPage({ viewport: { width: 390, height: 780 } });
+  p5.on('pageerror', (e) => console.log('[pageerror]', e.message));
+  await p5.addInitScript(() => {
+    const w = window as any;
+    w.__rn = [];
+    let asked = 0;
+    w.ReactNativeWebView = { postMessage(s: string) {
+      const m = JSON.parse(s);
+      w.__rn.push(m.type + (m.message ? ':' + m.message : '') + (m.result ? ':' + m.result.format : ''));
+      if (m.type === 'accept') setTimeout(() => w.__kqrAccept(m.id, ++asked === 1 ? 'Not ours' : true), 20);
+    } };
+  });
+  await p5.route('https://kqrcode.local/**', (r) => r.fulfill({ contentType: 'text/html; charset=utf-8', body: html }));
+  await p5.goto('https://kqrcode.local/');
+  // app goes to the background → camera released; back to the foreground → camera reopened
+  await p5.waitForFunction(() => (window as any).__rn.includes('ready'), null, { timeout: 20000 });
+  const bg = await p5.evaluate(() => {
+    (window as any).__kqrApp(false);
+    const el = document.querySelector('kqr-scanner') as any;
+    return { active: el.active, stream: !!el.shadowRoot.querySelector('video').srcObject };
+  });
+  await p5.evaluate(() => (window as any).__kqrApp(true));
+  await p5.waitForFunction(() => (window as any).__rn.filter((t: string) => t === 'ready').length >= 2, null, { timeout: 20000 }).catch(() => {});
+  console.log('rn background:', JSON.stringify(bg), 'readies:', await p5.evaluate(() => (window as any).__rn.filter((t: string) => t === 'ready').length));
+  // first accept says no → wait for the cooldown, then resume so the code is offered again
+  await p5.waitForFunction(() => (window as any).__rn.some((t: string) => t.startsWith('reject')), null, { timeout: 20000 }).catch(() => {});
+  await p5.evaluate(() => (window as any).__kqrCall('resume'));
+  await p5.waitForFunction(() => (window as any).__rn.some((t: string) => t.startsWith('scan')), null, { timeout: 20000 }).catch(() => {});
+  await p5.screenshot({ path: TMP + 'rn.png' });
+  console.log('rn:', JSON.stringify(await p5.evaluate(() => (window as any).__rn)), 'secure:', await p5.evaluate(() => isSecureContext));
 }
 await browser.close(); srv.close();

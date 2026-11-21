@@ -1,5 +1,5 @@
 import { prepareZXingModule, readBarcodes } from 'zxing-wasm/reader';
-import type { Decoder } from './engine';
+import type { Decoder, QRFormat } from './engine';
 
 /** Injected by scripts/build.mjs for the worker bundle: base64 of the *gzip-compressed* zxing_reader.wasm. */
 declare const __ZXING_WASM_GZ_B64__: string | undefined;
@@ -31,15 +31,39 @@ export async function createZXingDecoder(): Promise<Decoder> {
   }
   return {
     slow: false,
-    async decode(img, invert) {
+    async decode(img, invert, formats) {
+      const want = zxingFormats(formats);
+      if (!want.length) return null;
       const res = await readBarcodes(
         { data: img.data, width: img.width, height: img.height, colorSpace: 'srgb' } as unknown as ImageData,
-        { formats: ['QRCode'], tryHarder: true, tryRotate: true, tryInvert: invert, tryDownscale: true, maxNumberOfSymbols: 1 },
+        { formats: want, tryHarder: true, tryRotate: true, tryInvert: invert, tryDownscale: true, maxNumberOfSymbols: 1 },
       );
       const r = res[0];
       if (!r || !r.isValid) return null;
+      const format = FROM_ZXING[r.format] ?? 'qr_code';
+      if (formats && !formats.includes(format)) return null;
       const p = r.position;
-      return { text: r.text, bytes: Uint8Array.from(r.bytes), corners: [p.topLeft, p.topRight, p.bottomRight, p.bottomLeft] };
+      return {
+        text: r.text, bytes: Uint8Array.from(r.bytes), corners: [p.topLeft, p.topRight, p.bottomRight, p.bottomLeft],
+        format, version: r.version ?? '', ecLevel: r.ecLevel ?? '',
+      };
     },
   };
+}
+
+type ZXingFormat = 'QRCode' | 'QRCodeModel1' | 'QRCodeModel2' | 'MicroQRCode' | 'RMQRCode';
+const FROM_ZXING: Record<string, QRFormat> = {
+  QRCode: 'qr_code', QRCodeModel1: 'qr_code', QRCodeModel2: 'qr_code', MicroQRCode: 'micro_qr_code', RMQRCode: 'rm_qr_code', rMQRCode: 'rm_qr_code',
+};
+
+/** 'QRCode' is ZXing's whole QR symbology (Model 1/2, Micro QR, rMQR) – a single detector pass. */
+function zxingFormats(formats?: readonly QRFormat[]): ZXingFormat[] {
+  if (!formats) return ['QRCode'];
+  const has = (f: QRFormat) => formats.includes(f);
+  if (has('qr_code') && has('micro_qr_code') && has('rm_qr_code')) return ['QRCode'];
+  const out: ZXingFormat[] = [];
+  if (has('qr_code')) out.push('QRCodeModel1', 'QRCodeModel2');
+  if (has('micro_qr_code')) out.push('MicroQRCode');
+  if (has('rm_qr_code')) out.push('RMQRCode');
+  return out;
 }

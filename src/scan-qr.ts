@@ -4,7 +4,8 @@
  * Rejects with ScanError (camera problems) or DOMException 'AbortError' (user closed / signal aborted).
  */
 import { defineScannerElement, TAG_NAME, type KQRScannerElement, type ScannerLabels, type ScannerTheme } from './element';
-import type { ScanResult } from './scanner';
+import type { AcceptFn, ScanResult } from './scanner';
+import type { QRFormat } from './formats';
 
 export interface ScanQROptions {
   theme?: ScannerTheme;
@@ -34,6 +35,15 @@ export interface ScanQROptions {
   container?: HTMLElement;
   inline?: boolean;
   signal?: AbortSignal;
+  /** QR-family members to read. Default: all – 'qr_code', 'micro_qr_code', 'rm_qr_code'. */
+  formats?: QRFormat[];
+  /**
+   * Check a code before scanQR() resolves with it: true (or nothing) accepts, false ignores it and
+   * keeps scanning, a string ignores it and shows that string. May be async.
+   */
+  accept?: AcceptFn;
+  /** Called for every code `accept` turned down. */
+  onReject?: (result: ScanResult, message?: string) => void;
 }
 
 export function scanQR(o: ScanQROptions = {}): Promise<ScanResult> {
@@ -48,7 +58,8 @@ export function scanQR(o: ScanQROptions = {}): Promise<ScanResult> {
     set('super-resolution', o.superResolution); set('onnx-runtime-url', o.onnxRuntimeUrl); set('success', o.success);
     set('torch', o.torch); set('zoom-control', o.zoomControl); set('max-zoom', o.maxZoom); set('inline', o.inline);
     set('no-gallery', o.gallery === false); set('no-beep', o.beep === false); set('no-vibrate', o.vibrate === false);
-    set('no-auto-zoom', o.autoZoom === false);
+    set('no-auto-zoom', o.autoZoom === false); set('formats', o.formats?.join(' '));
+    if (o.accept) el.accept = o.accept;
     if (o.labels) el.labels = o.labels;
     for (const [k, v] of Object.entries(o.style ?? {})) el.style.setProperty(k, v);
     for (const [slot, content] of Object.entries(o.slots ?? {})) {
@@ -69,6 +80,10 @@ export function scanQR(o: ScanQROptions = {}): Promise<ScanResult> {
     const onAbort = () => finish(() => reject(new DOMException('Scan aborted', 'AbortError')));
     if (o.signal?.aborted) return onAbort();
     o.signal?.addEventListener('abort', onAbort);
+    el.addEventListener('reject', (e) => {
+      const d = (e as CustomEvent<{ result: ScanResult; message?: string }>).detail;
+      o.onReject?.(d.result, d.message);
+    });
     el.addEventListener('scan', (e) => finish(() => resolve((e as CustomEvent<ScanResult>).detail)));
     el.addEventListener('close', () => {
       if (done) el.remove(); // closed after an error was already reported

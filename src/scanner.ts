@@ -1,4 +1,4 @@
-import type { AnalyzeOptions, AnalyzeResult, Point, QRHint } from './engine';
+import type { AnalyzeOptions, AnalyzeResult, Point, QRFormat, QRHint } from './engine';
 import { AutoZoom } from './autozoom';
 import { engineHost, type Frame } from './engine-host';
 
@@ -22,11 +22,26 @@ export interface ScanResult {
   bytes: Uint8Array;
   /** Corners TL,TR,BR,BL in *video* pixel coordinates (empty for gallery images). */
   corners: Point[];
-  format: 'qr_code';
+  /** 'qr_code' (QR Code Model 1/2) | 'micro_qr_code' | 'rm_qr_code' (rMQR) */
+  format: QRFormat;
+  /** Symbol version: '1'…'40', 'M1'…'M4', 'R13x27'… (empty when the decoder does not report it). */
+  version: string;
+  /** Error-correction level 'L' | 'M' | 'Q' | 'H' (empty when unknown). */
+  ecLevel: string;
   zoom: number;
   timestamp: number;
   source: 'camera' | 'image';
 }
+
+/**
+ * What `accept` returns:
+ *  - `true` (or nothing)  accept the code: `result` fires and the scanner stops / pauses
+ *  - `false`              ignore it and keep scanning
+ *  - a string             ignore it, keep scanning, and show the string as a message
+ * A thrown error or rejected promise counts as `false`.
+ */
+export type AcceptVerdict = boolean | string | void | undefined;
+export type AcceptFn = (result: ScanResult) => AcceptVerdict | Promise<AcceptVerdict>;
 
 export interface ScannerOptions {
   video: HTMLVideoElement;
@@ -53,6 +68,16 @@ export interface ScannerOptions {
   superResolution?: 'js' | 'webgpu' | false;
   /** UMD build of onnxruntime-web used for superResolution: 'webgpu'. Self-host it if you prefer. */
   onnxRuntimeUrl?: string;
+  /**
+   * QR-family members to read. Default: all of them – QR Code (Model 1 and 2), Micro QR and rMQR.
+   * The jsQR fallback (strict CSP, no WebAssembly) reads QR Code only.
+   */
+  formats?: QRFormat[];
+  /**
+   * Check a decoded code before it counts as the result, e.g. only accept your own payment QR.
+   * Rejected codes are ignored while they stay in view; scanning continues. May be async.
+   */
+  accept?: AcceptFn;
 }
 
 export interface ScannerEvents {
@@ -62,6 +87,8 @@ export interface ScannerEvents {
   zoom: { zoom: number; min: number; max: number; auto: boolean; digital: boolean };
   hint: { hint: QRHint | null; decoded: boolean; videoWidth: number; videoHeight: number };
   dark: boolean;
+  /** `accept` turned a code down; `message` is the string it returned, if any. */
+  reject: { result: ScanResult; message?: string };
 }
 
 type Listener<T> = (e: T) => void;
@@ -89,7 +116,8 @@ const asFrame = (g: Grabbed): Frame =>
 
 export class QRScanner {
   readonly video: HTMLVideoElement;
-  private opts: Required<Omit<ScannerOptions, 'video' | 'deviceId'>> & { deviceId?: string };
+  private opts: Required<Omit<ScannerOptions, 'video' | 'deviceId' | 'formats' | 'accept'>> &
+    { deviceId?: string; formats?: QRFormat[]; accept?: AcceptFn };
   private listeners: Partial<Record<keyof ScannerEvents, Set<Listener<any>>>> = {};
 
   private stream: MediaStream | null = null;
@@ -112,9 +140,18 @@ export class QRScanner {
   private digital = false;
   private lastText = '';
   private lastTextAt = 0;
+  /** text → time until which `accept` is not asked again (refreshed while the code stays in view) */
+  private rejected = new Map<string, number>();
   private lumaEma = 128;
   private darkState = false;
-  private onVisibility = () => { this.paused = document.hidden; };
+  private onVisibility = () => {
+    this.paused = document.hidden;
+    // iOS ends the camera track when the app or tab is backgrounded; reopen it on return.
+    if (!document.hidden && this.running && this.track?.readyState === 'ended') {
+      this.stop();
+      void this.start().catch(() => {});
+    }
+  };
 
   constructor(options: ScannerOptions) {
     this.video = options.video;
@@ -233,7 +270,13 @@ export class QRScanner {
   }
 
   pause() { this.paused = true; }
-  resume() { this.paused = false; this.lastText = ''; }
+  resume() { this.paused = false; this.lastText = ''; this.rejected.clear(); }
+
+  /** Change which QR-family members are read (takes effect on the next frame). */
+  setFormats(formats: QRFormat[] | undefined) { this.opts.formats = formats?.length ? [...formats] : undefined; this.setupNative(); }
+
+  /** Replace the `accept` callback. */
+  setAccept(fn: AcceptFn | undefined) { this.opts.accept = fn; this.rejected.clear(); }
 
   async switchCamera(): Promise<void> {
     this.opts.facingMode = this.opts.facingMode === 'environment' ? 'user' : 'environment';
@@ -284,7 +327,10 @@ export class QRScanner {
     } catch { /* not supported (iOS) */ }
   }
 
-  /** Decode a still image (gallery pick). Tries several scales; returns null if nothing found. */
+  /**
+   * Decode a still image (gallery pick). Tries several scales; returns null if nothing was found
+   * or `accept` turned the code down (a `reject` event fires in that case).
+   */
   async scanImage(src: Blob | ImageBitmap): Promise<ScanResult | null> {
     const bmp = src instanceof Blob ? await createImageBitmap(src) : src;
     // camera not started (e.g. permission denied → user picks a photo): still use the WASM worker
@@ -304,12 +350,15 @@ export class QRScanner {
         ctx.fillRect(0, 0, w, h);
         ctx.drawImage(bmp, 0, 0, w, h);
         const img = ctx.getImageData(0, 0, w, h);
-        const r = await this.analyzeFrame({ pixels: img.data.buffer, width: w, height: h }, { invert: true, thorough: true });
+        const r = await this.analyzeFrame(
+          { pixels: img.data.buffer, width: w, height: h }, { invert: true, thorough: true, formats: this.opts.formats },
+        );
         if (r && r.text !== undefined) {
-          return {
-            text: r.text, bytes: r.bytes ?? new TextEncoder().encode(r.text), corners: [],
-            format: 'qr_code', zoom: 1, timestamp: Date.now(), source: 'image',
-          };
+          const result = toResult(r, [], 1, 'image');
+          const verdict = await this.check(result);
+          if (verdict === true) return result;
+          this.emit('reject', { result, message: verdict || undefined });
+          return null;
         }
       }
       return null;
@@ -360,17 +409,36 @@ export class QRScanner {
 
   private async setupDetectors() {
     // native detector: fastest where it exists (Android Chrome, macOS – not iOS Safari yet)
+    this.setupNative();
+    // shared, warm decoding worker (inline blob → works with every bundler)
+    if (!this.engine) {
+      const sr = this.opts.superResolution;
+      this.engine = await engineHost.acquire({ sr: sr === false ? 'off' : sr, ortUrl: this.opts.onnxRuntimeUrl });
+    }
+  }
+
+  private setupNative() {
+    // The Barcode Detection API knows plain QR only; Micro QR / rMQR always go through ZXing.
     this.native = null;
+    if (this.opts.formats && !this.opts.formats.includes('qr_code')) return;
     const BD = (globalThis as unknown as { BarcodeDetector?: { new (o: object): NativeDetector; getSupportedFormats(): Promise<string[]> } }).BarcodeDetector;
     if (BD) {
       BD.getSupportedFormats()
         .then((f) => { if (f.includes('qr_code')) this.native = new BD({ formats: ['qr_code'] }); })
         .catch(() => {});
     }
-    // shared, warm decoding worker (inline blob → works with every bundler)
-    if (!this.engine) {
-      const sr = this.opts.superResolution;
-      this.engine = await engineHost.acquire({ sr: sr === false ? 'off' : sr, ortUrl: this.opts.onnxRuntimeUrl });
+  }
+
+  /** Ask `accept`: true = take it, false / string = turn it down. */
+  private async check(result: ScanResult): Promise<true | false | string> {
+    const fn = this.opts.accept;
+    if (!fn) return true;
+    try {
+      const v = await fn(result);
+      if (v === undefined || v === true) return true;
+      return typeof v === 'string' ? v : false;
+    } catch {
+      return false;
     }
   }
 
@@ -462,6 +530,9 @@ export class QRScanner {
             bytes: new TextEncoder().encode(c.rawValue),
             corners: c.cornerPoints,
             hint: { cx: (c.cornerPoints[0].x + c.cornerPoints[2].x) / 2, cy: (c.cornerPoints[0].y + c.cornerPoints[2].y) / 2, size, module: size / 25, full: true },
+            format: 'qr_code',
+            version: '',
+            ecLevel: '',
             luma: 128,
           };
         }
@@ -472,7 +543,9 @@ export class QRScanner {
       if ('bitmap' in grabbed) grabbed.bitmap.close();
     } else {
       const lh = this.lastHint && now - this.lastHint.at < 700 ? hintToFrame(this.lastHint.hint) : null;
-      res = await this.analyzeFrame(asFrame(grabbed), { hint: lh, invert: this.frame % 6 === 5, thorough: this.frame % 5 === 0 });
+      res = await this.analyzeFrame(asFrame(grabbed), {
+        hint: lh, invert: this.frame % 6 === 5, thorough: this.frame % 5 === 0, formats: this.opts.formats,
+      });
     }
     if (!this.running) return;
 
@@ -492,7 +565,7 @@ export class QRScanner {
       };
       const g2 = await this.grab(rc, Math.round(side), Math.round(side));
       const k = Math.min(3, Math.max(1, 4 / Math.max(1, videoHint.module)));
-      const r2 = await this.analyzeFrame(asFrame(g2), { roiOnly: true, upscale: k, invert: this.frame % 3 === 0 });
+      const r2 = await this.analyzeFrame(asFrame(g2), { roiOnly: true, upscale: k, invert: this.frame % 3 === 0, formats: this.opts.formats });
       if (r2 && r2.text !== undefined && r2.corners) {
         res = { ...r2, hint: res.hint, luma: res.luma };
         corners = r2.corners.map((p) => ({ x: rc.x + p.x, y: rc.y + p.y }));
@@ -534,20 +607,47 @@ export class QRScanner {
         this.lastTextAt = now;
         return;
       }
+      // turned down recently and still in view: stay quiet
+      const until = this.rejected.get(text);
+      if (until !== undefined && now < until) {
+        this.rejected.set(text, now + REJECT_COOLDOWN);
+        return;
+      }
+      const result = toResult(res, corners, this.zoomValue, 'camera');
+      const token = this.loopToken;
+      const verdict = await this.check(result);
+      if (!this.running || token !== this.loopToken) return;
+      if (verdict !== true) {
+        const t = performance.now();
+        for (const [k, u] of this.rejected) if (u < t) this.rejected.delete(k);
+        this.rejected.set(text, t + REJECT_COOLDOWN);
+        this.emit('reject', { result, message: verdict || undefined });
+        return;
+      }
       this.lastText = text;
-      this.lastTextAt = now;
+      this.lastTextAt = performance.now();
       if (!this.opts.continuous) this.paused = true;
-      this.emit('result', {
-        text,
-        bytes: res.bytes ?? new TextEncoder().encode(text),
-        corners,
-        format: 'qr_code',
-        zoom: this.zoomValue,
-        timestamp: Date.now(),
-        source: 'camera',
-      });
+      this.emit('result', result);
     }
   }
+}
+
+/** A turned-down code is not offered to `accept` again until it has been out of view this long (ms). */
+const REJECT_COOLDOWN = 2000;
+
+function toResult(r: AnalyzeResult, corners: Point[], zoom: number, source: ScanResult['source']): ScanResult {
+  const text = r.text!;
+  return {
+    text,
+    bytes: r.bytes ?? new TextEncoder().encode(text),
+    corners,
+    format: r.format ?? 'qr_code',
+    version: r.version ?? '',
+    ecLevel: r.ecLevel ?? '',
+    zoom,
+    timestamp: Date.now(),
+    source,
+  };
 }
 
 function mapMediaError(e: unknown): ScanError {

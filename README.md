@@ -6,7 +6,7 @@
 </picture>
 
 <p><strong>The WeChat-style QR scanner for the web</strong></p>
-<p><i>A full-screen, long-range QR code scanner that finds codes anywhere in view, at any angle and from across the room, and zooms in by itself when a code is too small to read. It decodes with ZXing-C++ compiled to WebAssembly, falls back to WeChat's super-resolution model for blurry codes, and works in React, Vue, Svelte, Angular or plain HTML.</i></p>
+<p><i>A full-screen, long-range QR code scanner that finds codes anywhere in view, at any angle and from across the room, and zooms in by itself when a code is too small to read. It decodes with ZXing-C++ compiled to WebAssembly, falls back to WeChat's super-resolution model for blurry codes, and works in React, React Native, Vue, Svelte, Angular or plain HTML.</i></p>
 
 <p>
 <a href="https://www.npmjs.com/package/kqrcode"><img src="https://img.shields.io/npm/v/kqrcode?style=for-the-badge&logo=npm&color=CB3837" alt="npm version"></a>
@@ -49,7 +49,7 @@ Every engine sees **the same pixels**: hard synthetic camera frames with perspec
 
 **Where WeChat still wins:** the very farthest codes (1.5 px per module), thanks to its CNN detector.
 
-> Verified with **41 automated tests**, production builds of **React, Next.js, Nuxt, SvelteKit and Angular** scanning end-to-end, and cross-browser runs on **Chrome, Firefox and WebKit** (20 start/stop cycles, 0 leaked workers or camera tracks).
+> Verified with **64 automated tests**, production builds of **React, Next.js, Nuxt, SvelteKit and Angular** scanning end-to-end, and cross-browser runs on **Chrome, Firefox and WebKit** (20 start/stop cycles, 0 leaked workers or camera tracks).
 
 > [!TIP]
 > Methodology, the super-resolution timings on WebGPU and how to reproduce everything: **[docs/BENCHMARK.md](docs/BENCHMARK.md)**.
@@ -82,7 +82,7 @@ Every engine sees **the same pixels**: hard synthetic camera frames with perspec
   * A flashlight button that appears when the scene gets dark.
   * Album import, beep and haptic feedback.
   * A frozen frame with a "found it" check mark exactly where the code was.
-* **One API, Every Framework**: `scanQR()` for a single call, `<kqr-scanner>` for templates, and thin wrappers for React (with `'use client'`), Vue and Svelte. Imports are SSR-safe in Next.js, Nuxt, SvelteKit and Angular.
+* **One API, Every Framework**: `scanQR()` for a single call, `<kqr-scanner>` for templates, and thin wrappers for React (with `'use client'`), React Native (iOS, Android, Expo), Vue and Svelte. Imports are SSR-safe in Next.js, Nuxt, SvelteKit and Angular.
 * **CLI Scaffolding**:
   * `npx kqrcode init` detects your framework and package manager, installs the package and writes a ready-to-use component.
   * `npx kqrcode doctor` checks your setup, including CSP.
@@ -232,7 +232,28 @@ function onScan(r: { text: string }) {
 
 ---
 
-### 5. 🅰️ Angular
+### 5. 📱 React Native & Expo
+
+```tsx
+import { QRScanner } from 'kqrcode/react-native'; // needs react-native-webview
+
+<Modal visible={open} presentationStyle="fullScreen" onRequestClose={() => setOpen(false)}>
+  <QRScanner
+    style={{ flex: 1 }}
+    theme="wechat"
+    locale="lo"
+    accept={(r) => r.text.startsWith('000201') || 'ນີ້ບໍ່ແມ່ນ QR ຈ່າຍເງິນ'}
+    onScan={(r) => { setOpen(false); pay(r.text); }}
+    onClose={() => setOpen(false)}
+  />
+</Modal>
+```
+
+The same scanner runs inside a WebView with the engine bundled, so it works offline: same themes, auto-zoom, QR formats and `accept`. Works in Expo Go. `npx kqrcode init` does the whole setup, camera permissions included (an Expo config plugin, or the Info.plist and AndroidManifest entries in a bare app), and the component asks for the camera itself. Details: **[docs/REACT_NATIVE.md](docs/REACT_NATIVE.md)**.
+
+---
+
+### 6. 🅰️ Angular
 
 ```ts
 import { Component, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
@@ -257,7 +278,7 @@ export class ScanComponent {
 
 ---
 
-### 6. 🎨 Themes & Branding: Build a WeChat- or Alipay-Style Screen
+### 7. 🎨 Themes & Branding: Build a WeChat- or Alipay-Style Screen
 
 ```html
 <kqr-scanner
@@ -295,7 +316,7 @@ All 15 variables, 18 parts and 8 slots are listed in **[docs/CUSTOMIZE.md](docs/
 
 ---
 
-### 7. 🧪 Headless Mode: Your Own UI, Continuous Checkout Scanning
+### 8. 🧪 Headless Mode: Your Own UI, Continuous Checkout Scanning
 
 ```ts
 import { QRScanner } from 'kqrcode';
@@ -321,7 +342,7 @@ torchButton.onclick = () => scanner.setTorch(true);
 
 ---
 
-### 8. 🖼️ Scan From a Photo (Works Without Camera Permission)
+### 9. 🖼️ Scan From a Photo (Works Without Camera Permission)
 
 ```ts
 const file = input.files![0];
@@ -331,7 +352,31 @@ console.log(result?.text ?? 'no QR code in this image');
 
 ---
 
-### 9. 🛡️ Production Checklist
+### 10. ✅ Accept Only Your Codes: `accept` Callback and Every QR Format
+
+kqrcode reads the whole QR family: **QR Code** (Model 1 and 2, versions 1–40), **Micro QR** (M1–M4) and **rMQR** (rectangular Micro QR). Use `formats` to narrow it down, and `accept` to check each code before it counts. A code that `accept` turns down is ignored while it stays in view, and the camera keeps scanning.
+
+```ts
+const result = await scanQR({
+  formats: ['qr_code', 'micro_qr_code', 'rm_qr_code'], // the default: all of them
+  // true (or nothing) = accept · false = ignore, keep scanning · string = ignore and show it
+  accept: async (r) => {
+    if (!r.text.startsWith('000201')) return 'This is not a payment QR';
+    return (await fetch(`/api/qr/check?c=${encodeURIComponent(r.text)}`)).ok || 'Unknown merchant';
+  },
+  onReject: (r, message) => console.log('rejected', r.format, r.text, message),
+});
+console.log(result.format, result.version, result.ecLevel); // 'micro_qr_code' 'M3' 'M'
+```
+
+The same options exist everywhere: `accept` / `formats` / `onReject` props in React, React Native, Vue (`@reject`) and Svelte; on the element, `el.accept = fn`, `formats="qr_code micro_qr_code"` and a `reject` event; on the headless `QRScanner`, the `accept` and `formats` options and a `reject` event. Photos picked from the album go through `accept` too.
+
+> [!NOTE]
+> Micro QR and rMQR need the WebAssembly engine. The jsQR fallback, used only when a strict CSP blocks WebAssembly, reads plain QR Code only.
+
+---
+
+### 11. 🛡️ Production Checklist
 
 ```ts
 const { text } = await scanQR();
@@ -370,6 +415,7 @@ if (text.startsWith('000201')) {
 | `max-zoom` | `8` | Upper zoom limit |
 | `super-resolution` | `js` | `js` · `webgpu` · `off` |
 | `onnx-runtime-url` | jsDelivr | ONNX Runtime Web URL for `webgpu` |
+| `formats` | all | `qr_code` · `micro_qr_code` · `rm_qr_code`, space-separated |
 | `no-auto-zoom` · `no-close` · `no-gallery` · `no-beep` · `no-vibrate` | off | Turn features off |
 | `keep-camera` · `manual` · `request-fullscreen` | off | Lifecycle control |
 
@@ -377,9 +423,10 @@ if (text.startsWith('000201')) {
 | :--- | :--- | :--- | :--- |
 | `scan` | `ScanResult` | `start()` / `stop()` | Camera on / off |
 | `error` | `ScanError` | `close()` | Stop, hide, fire `close` |
-| `close` | – | `resume()` | Scan again after a result |
+| `close` | – | `resume()` | Scan again after a result (reopens the camera if needed) |
 | `ready` | – | `pickImage()` | Open the photo picker |
 | `zoom` | `{ zoom, min, max, digital }` | `toggleTorch(on?)` | Flashlight |
+| `reject` | `{ result, message? }` | `accept` (property) | Check each code before `scan` fires |
 
 Headless `QRScanner`, every option and every type: **[docs/API.md](docs/API.md)** · Framework notes: **[docs/FRAMEWORKS.md](docs/FRAMEWORKS.md)**
 
@@ -389,7 +436,7 @@ Headless `QRScanner`, every option and every type: **[docs/API.md](docs/API.md)*
 
 | Command | Description |
 | :--- | :--- |
-| `npx kqrcode init` | Detect the framework (Next, Nuxt, SvelteKit, Svelte, Angular, Vue, React, vanilla) and package manager (npm, pnpm, yarn, bun), install kqrcode and write a starter component |
+| `npx kqrcode init` | Detect the framework (Next, Nuxt, SvelteKit, Svelte, Angular, Vue, React Native / Expo, React, vanilla) and package manager (npm, pnpm, yarn, bun), install kqrcode and write a starter component. React Native: also installs `react-native-webview` and writes the camera permission entries |
 | `npx kqrcode init --theme alipay --locale lo` | Same, with a theme and language baked in |
 | `npx kqrcode doctor` | Check the Node version, the installation, framework-specific setup and a CSP that would block workers or WebAssembly |
 

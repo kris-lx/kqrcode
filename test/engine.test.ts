@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { analyze as analyzeRaw, locate, type AnalyzeInput, type AnalyzeOptions, type Decoder } from '../src/engine.ts';
+import { analyze as analyzeRaw, locate, symbolModules, type AnalyzeInput, type AnalyzeOptions, type Decoder } from '../src/engine.ts';
 import { createZXingDecoder } from '../src/decoder-zxing.ts';
 import { jsqrDecoder } from '../src/decoder-jsqr.ts';
-import { render } from './helpers.ts';
+import { render, renderSymbol } from './helpers.ts';
 
 const zx: Decoder = await createZXingDecoder();
 const analyze = (img: AnalyzeInput, o: AnalyzeOptions = {}) => analyzeRaw(img, o, zx);
@@ -85,4 +85,59 @@ test('performance: 1080p empty frame stays fast (best of 5 < 150 ms)', async () 
     best = Math.min(best, performance.now() - t);
   }
   assert.ok(best < 150, `best ${best.toFixed(1)} ms`);
+});
+
+/* ---------------- QR family: QR Code, Micro QR, rMQR ---------------- */
+
+const FAMILY = [
+  ['QRCode', 'qr_code'],
+  ['MicroQRCode', 'micro_qr_code'],
+  ['RMQRCode', 'rm_qr_code'],
+] as const;
+
+for (const [zx, format] of FAMILY) {
+  test(`decodes ${format} and reports format, version and EC level`, async () => {
+    const r = await analyze(await renderSymbol(zx, 'KPAY:12345', { module: 5, angle: 20 }));
+    assert.equal(r.text, 'KPAY:12345');
+    assert.equal(r.format, format);
+    assert.ok(r.version, 'version');
+    assert.match(r.ecLevel ?? '', /^[LMQH]$/);
+  });
+
+  test(`${format}: module size estimate drives zoom correctly`, async () => {
+    const r = await analyze(await renderSymbol(zx, 'KPAY:12345', { module: 6 }));
+    assert.ok(r.hint && Math.abs(r.hint.module - 6) < 1, `module ${r.hint?.module}`);
+  });
+
+  test(`${format}: far + blurred decodes`, async () => {
+    const r = await analyze(await renderSymbol(zx, 'KPAY:12345', { module: 3, angle: 15, blur: true, cx: 900 }));
+    assert.equal(r.text, 'KPAY:12345');
+  });
+}
+
+test('formats option filters the QR family', async () => {
+  const micro = await renderSymbol('MicroQRCode', 'KPAY:12345', { module: 5 });
+  assert.equal((await analyze(micro, { formats: ['qr_code'] })).text, undefined);
+  assert.equal((await analyze(micro, { formats: ['micro_qr_code'] })).format, 'micro_qr_code');
+  const qr = await renderSymbol('QRCode', 'KPAY:12345', { module: 5 });
+  assert.equal((await analyze(qr, { formats: ['micro_qr_code', 'rm_qr_code'] })).text, undefined);
+  assert.equal((await analyze(qr, { formats: ['qr_code'] })).format, 'qr_code');
+  const rmqr = await renderSymbol('RMQRCode', 'KPAY:12345', { module: 5 });
+  assert.equal((await analyze(rmqr, { formats: ['qr_code', 'micro_qr_code'] })).text, undefined);
+});
+
+test('jsQR fallback reports qr_code and honours formats', async () => {
+  const img = render(TEXT, { module: 6 });
+  const r = await analyzeRaw(img, { thorough: true }, jsqrDecoder);
+  assert.equal(r.format, 'qr_code');
+  assert.equal((await analyzeRaw(img, { thorough: true, formats: ['micro_qr_code'] }, jsqrDecoder)).text, undefined);
+});
+
+test('symbolModules', () => {
+  assert.equal(symbolModules('qr_code', '1'), 21);
+  assert.equal(symbolModules('qr_code', '40'), 177);
+  assert.equal(symbolModules('micro_qr_code', 'M1'), 11);
+  assert.equal(symbolModules('micro_qr_code', 'M4'), 17);
+  assert.equal(symbolModules('rm_qr_code', 'R13x27'), 27);
+  assert.equal(symbolModules(undefined, ''), 25);
 });

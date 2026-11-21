@@ -1,9 +1,24 @@
 import QRCode from 'qrcode';
+import { writeBarcode } from 'zxing-wasm/full';
+
+export interface RenderOpts { module: number; angle?: number; W?: number; H?: number; cx?: number; cy?: number; blur?: boolean; invert?: boolean }
 
 /** Render a QR with rotation, module size, and a perspective-free affine placement. */
-export function render(text: string, opts: { module: number; angle?: number; W?: number; H?: number; cx?: number; cy?: number; blur?: boolean; invert?: boolean }) {
+export function render(text: string, opts: RenderOpts) {
   const qr = QRCode.create(text, { errorCorrectionLevel: 'M' });
   const n = qr.modules.size;
+  return renderMatrix((u, v) => !!qr.modules.get(v, u), n, n, opts);
+}
+
+/** Render any QR-family symbol (QR Code, Micro QR, rMQR) created by ZXing's writer. */
+export async function renderSymbol(format: 'QRCode' | 'MicroQRCode' | 'RMQRCode', text: string, opts: RenderOpts) {
+  const w = await writeBarcode(text, { format });
+  if (!w.symbol) throw new Error(w.error || 'writeBarcode failed');
+  const { data, width, height } = w.symbol;
+  return renderMatrix((u, v) => data[v * width + u] < 128, width, height, opts);
+}
+
+export function renderMatrix(dark: (u: number, v: number) => boolean, nw: number, nh: number, opts: RenderOpts) {
   const W = opts.W ?? 1280;
   const H = opts.H ?? 720;
   const cx = opts.cx ?? W / 2;
@@ -16,15 +31,15 @@ export function render(text: string, opts: { module: number; angle?: number; W?:
   const fg = opts.invert ? 235 : 20;
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      // inverse transform to QR space (in modules)
+      // inverse transform to symbol space (in modules)
       const dx = x - cx;
       const dy = y - cy;
-      const u = (dx * cos + dy * sin) / opts.module + n / 2;
-      const v = (-dx * sin + dy * cos) / opts.module + n / 2;
+      const u = (dx * cos + dy * sin) / opts.module + nw / 2;
+      const v = (-dx * sin + dy * cos) / opts.module + nh / 2;
       let val = bg;
       const ui = Math.floor(u);
       const vi = Math.floor(v);
-      if (ui >= 0 && vi >= 0 && ui < n && vi < n && qr.modules.get(vi, ui)) val = fg;
+      if (ui >= 0 && vi >= 0 && ui < nw && vi < nh && dark(ui, vi)) val = fg;
       // mild deterministic noise
       val += ((x * 7 + y * 13) % 9) - 4;
       const o = (y * W + x) * 4;

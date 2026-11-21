@@ -26,18 +26,45 @@ export interface QRHint {
   full: boolean;
 }
 
+import type { QRFormat } from './formats';
+export type { QRFormat } from './formats';
+
 export interface Decoded {
   text: string;
   bytes: Uint8Array;
   /** TL, TR, BR, BL */
   corners: Point[];
+  /** default 'qr_code' */
+  format?: QRFormat;
+  /** Symbol version: '1'…'40', 'M1'…'M4' or 'R13x27' (empty when unknown). */
+  version?: string;
+  /** Error-correction level: 'L' | 'M' | 'Q' | 'H' (empty when unknown). */
+  ecLevel?: string;
+}
+
+/** Width of a symbol in modules, from its format + version (rMQR: the long side). */
+export function symbolModules(format: QRFormat | undefined, version: string | undefined): number {
+  const v = version ?? '';
+  if (format === 'micro_qr_code') {
+    const n = parseInt(v.replace(/^M/i, ''), 10);
+    return n >= 1 && n <= 4 ? 9 + 2 * n : 13;
+  }
+  if (format === 'rm_qr_code') {
+    const m = /(\d+)\s*x\s*(\d+)/i.exec(v);
+    return m ? Math.max(+m[1], +m[2]) : 43;
+  }
+  const n = parseInt(v, 10);
+  return n >= 1 && n <= 40 ? 17 + 4 * n : 25;
 }
 
 export interface Decoder {
   /** true = too slow to run on every full frame (jsQR) */
   slow: boolean;
-  /** `invert`: also try white-on-black codes */
-  decode(img: AnalyzeInput, invert: boolean): Promise<Decoded | null>;
+  /**
+   * `invert`: also try white-on-black codes.
+   * `formats`: QR-family members to accept (default: all of them).
+   */
+  decode(img: AnalyzeInput, invert: boolean, formats?: readonly QRFormat[]): Promise<Decoded | null>;
 }
 
 export interface AnalyzeInput {
@@ -62,6 +89,8 @@ export interface AnalyzeOptions {
   thorough?: boolean;
   /** Where the code was last seen: decode there first (fast tracking path). */
   hint?: QRHint | null;
+  /** QR-family members to accept (default: all of them). */
+  formats?: readonly QRFormat[];
 }
 
 export interface AnalyzeResult {
@@ -70,6 +99,9 @@ export interface AnalyzeResult {
   /** TL, TR, BR, BL in frame pixels. */
   corners?: Point[];
   hint?: QRHint | null;
+  format?: QRFormat;
+  version?: string;
+  ecLevel?: string;
   /** Mean luminance 0..255, used for the "too dark, turn on torch" hint. */
   luma: number;
 }
@@ -434,16 +466,18 @@ export type SuperRes = ((img: AnalyzeInput) => Promise<AnalyzeInput>) & {
 const SR_MAX_SIDE = 160;
 
 /** CNN ×2, then bilinear ×2 – measured best combination for ZXing (bench/diag.mts). */
-async function decodeWithSR(roi: AnalyzeInput, invert: boolean, dec: Decoder, sr: SuperRes): Promise<{ r: Decoded; k: number } | null> {
+async function decodeWithSR(
+  roi: AnalyzeInput, invert: boolean, dec: Decoder, sr: SuperRes, formats?: readonly QRFormat[],
+): Promise<{ r: Decoded; k: number } | null> {
   const up = await sr(roi);
   const up2 = cropScale(up, 0, 0, up.width, up.height, 2);
   const k = up2.width / roi.width;
-  const r = await dec.decode(up2, invert);
+  const r = await dec.decode(up2, invert, formats);
   return r ? { r, k } : null;
 }
 
 async function decodeRoi(
-  img: AnalyzeInput, hint: QRHint, invert: boolean, dec: Decoder, sr?: SuperRes | null,
+  img: AnalyzeInput, hint: QRHint, invert: boolean, dec: Decoder, sr?: SuperRes | null, formats?: readonly QRFormat[],
 ): Promise<AnalyzeResult | null> {
   const pad = hint.full ? 0.3 : 0.45;
   const side = hint.size * (1 + pad);
@@ -458,31 +492,35 @@ async function decodeRoi(
   let k = Math.min(4, Math.max(1, 4 / Math.max(1, hint.module)), 1600 / Math.max(rw, rh));
   k = Math.round(k * 2) / 2;
   const roi = k === 1 && rw === img.width && rh === img.height ? img : cropScale(img, x0, y0, rw, rh, k);
-  const r = await dec.decode(roi, invert);
+  const r = await dec.decode(roi, invert, formats);
   if (r) {
     const map = (p: Point): Point => ({ x: x0 + p.x / k, y: y0 + p.y / k });
-    return { text: r.text, bytes: r.bytes, corners: r.corners.map(map), luma: 0 };
+    return { ...meta(r), corners: r.corners.map(map), luma: 0 };
   }
   // WeChat-style: small code that bilinear upscaling could not rescue → CNN super-resolution
   if (sr && hint.module < 4.5 && Math.max(rw, rh) <= (sr.maxSide ?? SR_MAX_SIDE)) {
     const crop = cropScale(img, x0, y0, rw, rh, 1);
-    const s = await decodeWithSR(crop, invert, dec, sr);
+    const s = await decodeWithSR(crop, invert, dec, sr, formats);
     if (s) {
       const map = (p: Point): Point => ({ x: x0 + p.x / s.k, y: y0 + p.y / s.k });
-      return { text: s.r.text, bytes: s.r.bytes, corners: s.r.corners.map(map), luma: 0 };
+      return { ...meta(s.r), corners: s.r.corners.map(map), luma: 0 };
     }
   }
   return null;
 }
 
+const meta = (r: Decoded) => ({
+  text: r.text, bytes: r.bytes, format: r.format ?? 'qr_code', version: r.version ?? '', ecLevel: r.ecLevel ?? '',
+});
+
 function fromDecoded(r: Decoded, luma: number): AnalyzeResult {
   const c = r.corners;
+  // TL→TR is the long side of an rMQR symbol, matching symbolModules()
   const size = Math.hypot(c[0].x - c[1].x, c[0].y - c[1].y);
   return {
-    text: r.text,
-    bytes: r.bytes,
+    ...meta(r),
     corners: c,
-    hint: { cx: (c[0].x + c[2].x) / 2, cy: (c[0].y + c[2].y) / 2, size, module: size / 25, full: true },
+    hint: { cx: (c[0].x + c[2].x) / 2, cy: (c[0].y + c[2].y) / 2, size, module: size / symbolModules(r.format, r.version), full: true },
     luma,
   };
 }
@@ -496,10 +534,10 @@ export async function analyze(img: AnalyzeInput, opts: AnalyzeOptions, dec: Deco
   if (opts.roiOnly) {
     const k = opts.upscale && opts.upscale > 1 ? opts.upscale : 1;
     const src = k > 1 ? cropScale(img, 0, 0, img.width, img.height, k) : img;
-    const r = await dec.decode(src, invert);
+    const r = await dec.decode(src, invert, opts.formats);
     if (r) return fromDecoded({ ...r, corners: r.corners.map((p) => ({ x: p.x / k, y: p.y / k })) }, luma);
     if (useSR && k > 1 && Math.max(img.width, img.height) <= (useSR.maxSide ?? SR_MAX_SIDE)) {
-      const s = await decodeWithSR(img, invert, dec, useSR);
+      const s = await decodeWithSR(img, invert, dec, useSR, opts.formats);
       if (s) return fromDecoded({ ...s.r, corners: s.r.corners.map((p) => ({ x: p.x / s.k, y: p.y / s.k })) }, luma);
     }
     return { luma };
@@ -507,14 +545,14 @@ export async function analyze(img: AnalyzeInput, opts: AnalyzeOptions, dec: Deco
 
   // 1) tracking path: look where the code was last frame
   if (opts.hint) {
-    const r = await decodeRoi(img, opts.hint, invert, dec, useSR);
+    const r = await decodeRoi(img, opts.hint, invert, dec, useSR, opts.formats);
     if (r) return { ...r, hint: opts.hint, luma };
   }
 
   // 2) whole frame. ZXing-C++ does 1080p in ~8 ms so it runs every frame;
   //    the slow jsQR fallback only runs now and then.
   if (!dec.slow || opts.thorough) {
-    const full = await dec.decode(img, invert);
+    const full = await dec.decode(img, invert, opts.formats);
     if (full) return fromDecoded(full, luma);
   }
 
@@ -528,7 +566,7 @@ export async function analyze(img: AnalyzeInput, opts: AnalyzeOptions, dec: Deco
   }
   let srBudget = useSR;
   for (const c of cands) {
-    const r = await decodeRoi(img, c, invert, dec, srBudget);
+    const r = await decodeRoi(img, c, invert, dec, srBudget, opts.formats);
     if (r) return { ...r, hint: c, luma };
     if (srBudget && c.module < 4.5) srBudget = null;
   }

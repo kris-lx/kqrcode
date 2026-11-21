@@ -15,13 +15,19 @@
  *   <kqr-scanner theme="alipay" onscan={(e) => pay(e.detail.text)}><button slot="footer">…</button></kqr-scanner>
  */
 import { defineScannerElement, TAG_NAME, type KQRScannerElement, type ScannerLabels, type ScannerTheme } from './element';
-import type { ScanError, ScanResult } from './scanner';
+import type { AcceptFn, ScanError, ScanResult } from './scanner';
+import type { QRFormat } from './formats';
 
 export interface QRScannerActionOptions {
   onScan?: (r: ScanResult) => void;
   onError?: (e: ScanError) => void;
   onClose?: () => void;
   onReady?: () => void;
+  onReject?: (r: ScanResult, message?: string) => void;
+  /** true (or nothing) accepts, false ignores the code, a string ignores it and shows the string. May be async. */
+  accept?: AcceptFn;
+  /** QR-family members to read. Default: all – 'qr_code', 'micro_qr_code', 'rm_qr_code'. */
+  formats?: QRFormat[];
   facing?: 'environment' | 'user';
   locale?: string;
   continuous?: boolean;
@@ -55,6 +61,7 @@ function applyAttrs(el: KQRScannerElement, o: QRScannerActionOptions) {
     const v = o[k];
     v !== undefined && v !== null ? el.setAttribute(attr, String(v)) : el.removeAttribute(attr);
   }
+  o.formats?.length ? el.setAttribute('formats', o.formats.join(' ')) : el.removeAttribute('formats');
   el.labels = o.labels ?? {};
   for (const [k, v] of Object.entries(o.style ?? {})) el.style.setProperty(k, v);
 }
@@ -69,6 +76,11 @@ export function qrScanner(node: HTMLElement, options: QRScannerActionOptions = {
   on('error', (e) => opts.onError?.((e as CustomEvent<ScanError>).detail));
   on('close', () => opts.onClose?.());
   on('ready', () => opts.onReady?.());
+  on('reject', (e) => {
+    const d = (e as CustomEvent<{ result: ScanResult; message?: string }>).detail;
+    opts.onReject?.(d.result, d.message);
+  });
+  el.accept = (r) => (opts.accept ? opts.accept(r) : true);
   // Svelte 5 forbids slot="…" outside custom elements, so children use data-slot="…" instead
   for (const child of [...node.children] as HTMLElement[]) {
     const slot = child.dataset.slot ?? child.getAttribute('slot');
