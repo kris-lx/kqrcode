@@ -1,6 +1,6 @@
 name: Release
 
-# Publishes to npm when a version tag is pushed: git tag v0.1.0 && git push --tags
+# Publishes to npm when a version tag is pushed: git tag v0.2.0 && git push --tags
 # Requires the repository secret NPM_TOKEN (an npm automation token).
 on:
   push:
@@ -24,10 +24,10 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npm test
-      - name: Publish (pre-releases go to the "beta" tag)
+      - name: Publish (pre-releases like 1.0.0-rc.1 go to the "beta" tag)
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          if [[ "$VERSION" == 0.* || "$VERSION" == *-* ]]; then TAG=beta; else TAG=latest; fi
+          if [[ "$VERSION" == *-* ]]; then TAG=beta; else TAG=latest; fi
           npm publish --provenance --access public --tag "$TAG"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

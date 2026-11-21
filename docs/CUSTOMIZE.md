@@ -5,7 +5,7 @@ Use the lightest layer that does what you need. Each layer keeps the layers belo
 ## 0. One line
 
 ```ts
-import { scanQR } from 'k-qr-scanner';
+import { scanQR } from 'kqr-scanner';
 
 const { text } = await scanQR({ theme: 'alipay', locale: 'lo', heading: 'ສະແກນຈ່າຍ' });
 ```
@@ -99,7 +99,7 @@ el.labels = { hint: 'ສະແກນເພື່ອຈ່າຍ', torchOn: 'ເ�
 ## 6. Headless: your own UI from scratch
 
 ```ts
-import { QRScanner } from 'k-qr-scanner';
+import { QRScanner } from 'kqr-scanner';
 const s = new QRScanner({ video, superResolution: 'webgpu' });
 s.on('hint', ({ hint }) => draw(hint));     // a code is visible but not yet readable
 s.on('zoom', (z) => showZoom(z.zoom));

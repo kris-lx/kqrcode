@@ -1,8 +1,8 @@
 /**
  * kqrcode CLI
  *
- *   npx k-qr-scanner init      detect framework + package manager, install k-qr-scanner, add a starter component
- *   npx k-qr-scanner doctor    check the project setup
+ *   npx kqr-scanner init      detect framework + package manager, install kqr-scanner, add a starter component
+ *   npx kqr-scanner doctor    check the project setup
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
@@ -11,7 +11,7 @@ import { spawnSync } from 'node:child_process';
 declare const __VERSION__: string;
 const VERSION = typeof __VERSION__ !== 'undefined' ? __VERSION__ : '0.0.0';
 /** npm package name (imports, install, Expo plugin). */
-const PKG = 'k-qr-scanner';
+const PKG = 'kqr-scanner';
 
 /* ------------------------------------------------------------------ */
 /* tiny helpers                                                        */
@@ -108,7 +108,7 @@ export function template(fw: Framework, opts: { ts: boolean; theme: string; loca
       const props = ts ? ': { onResult: (text: string) => void; onClose?: () => void }' : '';
       return {
         file,
-        code: `${fw === 'next' ? "'use client';\n\n" : ''}import { QRScanner } from 'k-qr-scanner/react';
+        code: `${fw === 'next' ? "'use client';\n\n" : ''}import { QRScanner } from 'kqr-scanner/react';
 
 /** Full-screen QR scanner. Render it when you want to scan, unmount it to close. */
 export default function QrScanner({ onResult, onClose }${props}) {
@@ -131,7 +131,7 @@ export default function QrScanner({ onResult, onClose }${props}) {
       return {
         file,
         code: `import { Modal } from 'react-native';
-import { QRScanner } from 'k-qr-scanner/react-native';
+import { QRScanner } from 'kqr-scanner/react-native';
 
 /** Full-screen QR scanner. Render it when you want to scan, unmount it to close. */
 export default function QrScanner({ onResult, onClose }${props}) {
@@ -159,7 +159,7 @@ export default function QrScanner({ onResult, onClose }${props}) {
       return {
         file,
         code: `<script setup${ts ? ' lang="ts"' : ''}>
-import { QRScanner } from 'k-qr-scanner/vue';
+import { QRScanner } from 'kqr-scanner/vue';
 
 const emit = defineEmits${ts ? '<{ result: [text: string]; close: [] }>()' : "(['result', 'close'])"};
 </script>
@@ -181,7 +181,7 @@ const emit = defineEmits${ts ? '<{ result: [text: string]; close: [] }>()' : "([
       return {
         file: 'src/lib/QrScanner.svelte',
         code: `<script${ts ? ' lang="ts"' : ''}>
-  import { qrScanner } from 'k-qr-scanner/svelte';
+  import { qrScanner } from 'kqr-scanner/svelte';
 
   let { onresult, onclose }${ts ? ': { onresult: (text: string) => void; onclose?: () => void }' : ''} = $props();
 </script>
@@ -195,8 +195,8 @@ const emit = defineEmits${ts ? '<{ result: [text: string]; close: [] }>()' : "([
       return {
         file: 'src/app/qr-scanner.component.ts',
         code: `import { Component, CUSTOM_ELEMENTS_SCHEMA, EventEmitter, Output } from '@angular/core';
-import 'k-qr-scanner';
-import type { ScanResult } from 'k-qr-scanner';
+import 'kqr-scanner';
+import type { ScanResult } from 'kqr-scanner';
 
 /** Full-screen QR scanner. Render it with @if when you want to scan. */
 @Component({
@@ -216,7 +216,7 @@ export class QrScannerComponent {
     default:
       return {
         file: `${src}qr-scanner.${ts ? 'ts' : 'js'}`,
-        code: `import { scanQR, QRScanner } from 'k-qr-scanner';
+        code: `import { scanQR, QRScanner } from 'kqr-scanner';
 
 // Optional: start downloading the decoder early, e.g. when the page loads.
 QRScanner.preload();
@@ -259,7 +259,7 @@ function init(a: Args): number {
   // Nuxt / SvelteKit generate their tsconfig, so a missing root tsconfig.json doesn't mean JavaScript
   const ts = existsSync(join(a.cwd, 'tsconfig.json')) || !!deps.typescript || fw === 'nuxt' || fw === 'angular';
   const srcDir = existsSync(join(a.cwd, 'src'));
-  log(`${bold('k-qr-scanner')} ${dim('v' + VERSION)}`);
+  log(`${bold('kqr-scanner')} ${dim('v' + VERSION)}`);
   log(`  framework        ${cyan(fw)}${a.framework ? '' : dim(' (detected)')}`);
   log(`  package manager  ${cyan(pm)}${a.pm ? '' : dim(' (detected)')}`);
   log(`  language         ${cyan(ts ? 'TypeScript' : 'JavaScript')}`);
@@ -329,12 +329,12 @@ function plistFiles(cwd: string): string[] {
   } catch { return []; }
 }
 
-/** Expo app.json that lists the k-qr-scanner config plugin. */
-const hasExpoPlugin = (appJson: string | null) => !!appJson && /["']k-qr-scanner["']/.test(appJson);
+/** Expo app.json that lists the kqr-scanner config plugin. */
+const hasExpoPlugin = (appJson: string | null) => !!appJson && /["']kqr-scanner["']/.test(appJson);
 
 /**
  * Writes the camera permission entries, so a fresh app runs without manual native edits:
- * Expo → the "k-qr-scanner" config plugin in app.json; bare → Info.plist + AndroidManifest.xml.
+ * Expo → the "kqr-scanner" config plugin in app.json; bare → Info.plist + AndroidManifest.xml.
  */
 function nativeSetup(cwd: string, expo: boolean, dryRun: boolean): void {
   const read = (f: string) => (existsSync(join(cwd, f)) ? readFileSync(join(cwd, f), 'utf8') : null);
@@ -342,16 +342,16 @@ function nativeSetup(cwd: string, expo: boolean, dryRun: boolean): void {
   if (expo) {
     const raw = read('app.json');
     if (raw === null) {
-      log(yellow(`! add ${bold('"plugins": ["k-qr-scanner"]')} to your app config (no app.json found)`));
+      log(yellow(`! add ${bold('"plugins": ["kqr-scanner"]')} to your app config (no app.json found)`));
       return;
     }
-    if (hasExpoPlugin(raw)) { log(green('✔ app.json already uses the k-qr-scanner plugin')); return; }
+    if (hasExpoPlugin(raw)) { log(green('✔ app.json already uses the kqr-scanner plugin')); return; }
     let json: { expo?: { plugins?: unknown[] } } & Record<string, unknown>;
-    try { json = JSON.parse(raw); } catch { log(yellow(`! app.json is not valid JSON – add ${bold('"plugins": ["k-qr-scanner"]')} by hand`)); return; }
+    try { json = JSON.parse(raw); } catch { log(yellow(`! app.json is not valid JSON – add ${bold('"plugins": ["kqr-scanner"]')} by hand`)); return; }
     const root = (json.expo ?? json) as { plugins?: unknown[] };
-    root.plugins = [...(root.plugins ?? []), 'k-qr-scanner'];
+    root.plugins = [...(root.plugins ?? []), 'kqr-scanner'];
     const indent = raw.match(/^[ \t]+/m)?.[0] ?? '  ';
-    write('app.json', JSON.stringify(json, null, indent) + '\n', 'added the k-qr-scanner plugin to app.json (camera permission on iOS + Android)');
+    write('app.json', JSON.stringify(json, null, indent) + '\n', 'added the kqr-scanner plugin to app.json (camera permission on iOS + Android)');
     return;
   }
   const plists = plistFiles(cwd);
@@ -403,7 +403,7 @@ function doctor(a: Args): number {
     v && v < 17 ? bad('React 17+ is required') : ok('React version ok');
   }
   if (fw === 'vue' || fw === 'nuxt') {
-    warn('If you use the raw <kqr-scanner> tag in Vue templates (instead of k-qr-scanner/vue), add it to compilerOptions.isCustomElement');
+    warn('If you use the raw <kqr-scanner> tag in Vue templates (instead of kqr-scanner/vue), add it to compilerOptions.isCustomElement');
   }
   if (fw === 'react-native') {
     if (!d['react-native-webview']) bad('react-native-webview is missing – run: ' + (d.expo ? 'npx expo install react-native-webview' : 'npm install react-native-webview'));
@@ -415,7 +415,7 @@ function doctor(a: Args): number {
     const plugin = hasExpoPlugin(appJson);
     const iosOk = plugin || plists.some((p) => p.includes('NSCameraUsageDescription')) || !!appJson?.includes('NSCameraUsageDescription');
     const androidOk = plugin || !!manifest?.includes('android.permission.CAMERA') || /["']CAMERA["']|android\.permission\.CAMERA/.test(appJson ?? '');
-    const fix = 'run: npx k-qr-scanner init --no-install';
+    const fix = 'run: npx kqr-scanner init --no-install';
     if (plists.length || appJson) iosOk ? ok('iOS camera usage description set') : bad(`iOS: NSCameraUsageDescription is missing (the app crashes when the camera opens) – ${fix}`);
     if (manifest || appJson) androidOk ? ok('Android CAMERA permission declared') : bad(`Android: android.permission.CAMERA is not declared – ${fix}`);
   }
@@ -439,11 +439,11 @@ function doctor(a: Args): number {
 }
 
 function help() {
-  log(`${bold('k-qr-scanner')} ${dim('v' + VERSION)} – QR code scanner for the web
+  log(`${bold('kqr-scanner')} ${dim('v' + VERSION)} – QR code scanner for the web
 
 ${bold('Usage')}
-  npx k-qr-scanner init [options]     install k-qr-scanner and add a starter component
-  npx k-qr-scanner doctor             check the project setup
+  npx kqr-scanner init [options]     install kqr-scanner and add a starter component
+  npx kqr-scanner doctor             check the project setup
 
 ${bold('Options for init')}
   --framework <name>   next | nuxt | sveltekit | svelte | angular | vue | react-native | react | vanilla  (auto-detected)
@@ -451,7 +451,7 @@ ${bold('Options for init')}
   --theme <name>       ${THEMES.join(' | ')}  (default: wechat)
   --locale <code>      en | lo | zh  (default: en)
   --out <path>         where to write the component (default depends on the framework)
-  --from <spec>        install from a version, tag or tarball instead of "k-qr-scanner"
+  --from <spec>        install from a version, tag or tarball instead of "kqr-scanner"
   --no-install         skip installing packages (still writes the component and, for React Native, the camera permission)
   --force              overwrite an existing component file
   --dry-run            show what would happen

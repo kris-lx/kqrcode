@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.2.0] – 2026-11-21
+
 ### Changed
 
 - **Smaller engine**: 631 → 458 kB gzip (−27 %), 1.5 MB → 648 kB raw. The WebAssembly is gzip-compressed inside the engine and inflated with `DecompressionStream`; jsQR is no longer bundled in the worker; the super-resolution weights are read from the ONNX model instead of being shipped twice.
@@ -14,9 +16,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
-- **React Native** (`k-qr-scanner/react-native`): a `<QRScanner>` component for iOS, Android and Expo. It runs the same scanner in `react-native-webview` with the engine bundled (works offline), and carries over every prop, `accept`, `formats` and events. Extras: `cssVars`, HTML `slots` with `onSlotPress`, `keepCamera`, `scriptUrl`, and ref methods. The component asks for the Android camera permission itself, releases the camera while the app is in the background, and reloads if the OS kills the WebView process.
-- **Expo config plugin**: `"plugins": ["k-qr-scanner"]` adds the iOS and Android camera permission entries (`cameraPermission` sets the iOS text).
-- `npx k-qr-scanner init` for React Native / Expo installs `react-native-webview`, writes the camera permission entries (the Expo plugin in app.json, or Info.plist + AndroidManifest.xml) and a starter component; `doctor` checks them.
+- **React Native** (`kqr-scanner/react-native`): a `<QRScanner>` component for iOS, Android and Expo. It runs the same scanner in `react-native-webview` with the engine bundled (works offline), and carries over every prop, `accept`, `formats` and events. Extras: `cssVars`, HTML `slots` with `onSlotPress`, `keepCamera`, `scriptUrl`, and ref methods. The component asks for the Android camera permission itself, releases the camera while the app is in the background, and reloads if the OS kills the WebView process.
+- **Expo config plugin**: `"plugins": ["kqr-scanner"]` adds the iOS and Android camera permission entries (`cameraPermission` sets the iOS text).
+- `npx kqr-scanner init` for React Native / Expo installs `react-native-webview`, writes the camera permission entries (the Expo plugin in app.json, or Info.plist + AndroidManifest.xml) and a starter component; `doctor` checks them.
 - `<kqr-scanner>`: read-only `active` property; `resume()` reopens the camera when it was already stopped.
 - **Every QR format**: Micro QR (M1–M4) and rMQR are read alongside QR Code (Model 1 and 2). `ScanResult.format` is now `'qr_code' | 'micro_qr_code' | 'rm_qr_code'`, and results carry `version` and `ecLevel`. Auto-zoom and tracking use the real module count of each symbol.
 - `formats` option (`scanQR`, `QRScanner`, wrappers) and `formats` attribute to limit which QR-family members are read. `QR_FORMATS` lists them.
@@ -45,8 +47,9 @@ First public release.
 - Themes `wechat`, `alipay`, `grid`, `frame` and `none`, plus CSS variables, `::part()` and slots.
 - `scanQR()` one-call API and the headless `QRScanner` class.
 - React, Vue and Svelte wrappers; Angular and plain HTML through the custom element; SSR-safe imports.
-- `npx k-qr-scanner init` and `npx k-qr-scanner doctor` CLI.
+- `npx kqr-scanner init` and `npx kqr-scanner doctor` CLI.
 - English, Lao and Chinese labels.
 
-[Unreleased]: https://github.com/kris-lx/kqrcode/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/kris-lx/kqrcode/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/kris-lx/kqrcode/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kris-lx/kqrcode/releases/tag/v0.1.0

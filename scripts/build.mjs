@@ -44,7 +44,7 @@ await build({
 }
 
 // CJS: wrappers re-use index.cjs, and index.cjs loads the engine from one shared file on demand
-const shareIndex = { name: 'share-index', setup(b) { b.onResolve({ filter: /^\.\/(element|scanner)$/ }, () => ({ path: 'k-qr-scanner', external: true })); } };
+const shareIndex = { name: 'share-index', setup(b) { b.onResolve({ filter: /^\.\/(element|scanner)$/ }, () => ({ path: 'kqr-scanner', external: true })); } };
 const cjsEngine = { name: 'cjs-engine', setup(b) {
   b.onResolve({ filter: ENGINE }, () => ({ path: './engine.cjs', external: true }));
   b.onResolve({ filter: JSQR }, () => ({ path: './jsqr.cjs', external: true }));
@@ -57,7 +57,7 @@ for (const [name, entry] of Object.entries(entries)) {
   await build({ ...common, banner, plugins, entryPoints: [entry], format: 'cjs', outfile: p(`dist/${name}.cjs`) });
 }
 
-// CLI (npx k-qr-scanner …) – Node, no dependencies
+// CLI (npx kqr-scanner …) – Node, no dependencies
 {
   const version = JSON.parse(readFileSync(p('package.json'), 'utf8')).version;
   await build({

@@ -1,6 +1,6 @@
 # Using kqrcode in every framework
 
-> **Fastest way:** run `npx k-qr-scanner init` in your project. It detects the framework, installs the package and creates a starter component based on the examples below.
+> **Fastest way:** run `npx kqr-scanner init` in your project. It detects the framework, installs the package and creates a starter component based on the examples below.
 
 The scanner is a standard **custom element** (`<kqr-scanner>`), so it works anywhere the DOM works.
 Thin wrappers exist for React, Vue and Svelte. Importing any entry is SSR-safe (it registers the element only in the browser).
@@ -25,7 +25,7 @@ Events: `scan` (`detail: ScanResult`), `error` (`detail: ScanError`), `close`, `
 
 ```tsx
 import { useState } from 'react';
-import { QRScanner } from 'k-qr-scanner/react';
+import { QRScanner } from 'kqr-scanner/react';
 
 export function PayButton() {
   const [open, setOpen] = useState(false);
@@ -53,7 +53,7 @@ The React entry ships with `'use client'`, so you can render it from a server co
 ```tsx
 // app/scan/page.tsx
 import dynamic from 'next/dynamic';
-const QRScanner = dynamic(() => import('k-qr-scanner/react').then((m) => m.QRScanner), { ssr: false });
+const QRScanner = dynamic(() => import('kqr-scanner/react').then((m) => m.QRScanner), { ssr: false });
 
 export default function Page() {
   return <QRScanner locale="lo" onScan={(r) => console.log(r.text)} />;
@@ -65,7 +65,7 @@ export default function Page() {
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue';
-import { QRScanner } from 'k-qr-scanner/vue';
+import { QRScanner } from 'kqr-scanner/vue';
 const open = ref(false);
 </script>
 
@@ -83,7 +83,7 @@ If you use the raw tag `<kqr-scanner>` in Vue templates instead of the wrapper, 
 ```vue
 <!-- pages/scan.vue -->
 <script setup lang="ts">
-import { QRScanner } from 'k-qr-scanner/vue';
+import { QRScanner } from 'kqr-scanner/vue';
 </script>
 
 <template>
@@ -97,7 +97,7 @@ import { QRScanner } from 'k-qr-scanner/vue';
 
 ```svelte
 <script lang="ts">
-  import { qrScanner } from 'k-qr-scanner/svelte';
+  import { qrScanner } from 'kqr-scanner/svelte';
   let open = $state(false);
 </script>
 
@@ -120,7 +120,7 @@ Slots: Svelte 5 rejects `slot="…"` inside a plain `<div>`, so inside the actio
 Or use the custom element tag directly, where `slot` is valid and events are `on<name>` attributes:
 
 ```svelte
-<script>import 'k-qr-scanner';</script>
+<script>import 'kqr-scanner';</script>
 <kqr-scanner theme="alipay" locale="lo" onscan={(e) => pay(e.detail.text)}>
   <button slot="actions-left">My QR</button>
 </kqr-scanner>
@@ -131,8 +131,8 @@ Or use the custom element tag directly, where `slot` is valid and events are `on
 ```ts
 // scan.component.ts
 import { Component, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
-import 'k-qr-scanner'; // registers <kqr-scanner>
-import type { ScanResult } from 'k-qr-scanner';
+import 'kqr-scanner'; // registers <kqr-scanner>
+import type { ScanResult } from 'kqr-scanner';
 
 @Component({
   selector: 'app-scan',
@@ -156,17 +156,17 @@ With Angular SSR the import is safe on the server; the element only activates in
 ## React Native / Expo
 
 ```tsx
-import { QRScanner } from 'k-qr-scanner/react-native'; // npx k-qr-scanner init: installs, adds camera permissions
+import { QRScanner } from 'kqr-scanner/react-native'; // npx kqr-scanner init: installs, adds camera permissions
 
 <QRScanner style={{ flex: 1 }} locale="lo" onScan={(r) => pay(r.text)} onClose={() => setOpen(false)} />
 ```
 
-Expo: `"plugins": ["k-qr-scanner"]` adds the camera permissions. Props and platform notes: [REACT_NATIVE.md](REACT_NATIVE.md).
+Expo: `"plugins": ["kqr-scanner"]` adds the camera permissions. Props and platform notes: [REACT_NATIVE.md](REACT_NATIVE.md).
 
 ## Plain HTML / CDN
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/k-qr-scanner/dist/kqrcode.global.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/kqr-scanner/dist/kqrcode.global.js"></script>
 <kqr-scanner locale="lo"></kqr-scanner>
 <script>
   document.querySelector('kqr-scanner').addEventListener('scan', (e) => alert(e.detail.text));
@@ -176,7 +176,7 @@ Expo: `"plugins": ["k-qr-scanner"]` adds the camera permissions. Props and platf
 ## Headless (bring your own UI)
 
 ```ts
-import { QRScanner } from 'k-qr-scanner';
+import { QRScanner } from 'kqr-scanner';
 const scanner = new QRScanner({ video: document.querySelector('video')!, superResolution: 'webgpu' });
 scanner.on('result', (r) => console.log(r.text));
 scanner.on('hint', ({ hint }) => drawBox(hint)); // where a (still unreadable) code is

@@ -18,14 +18,14 @@ function project(deps: Record<string, string>, files: Record<string, string> = {
 }
 
 const cases: [string, Record<string, string>, Record<string, string>, string, RegExp][] = [
-  ['next', { next: '15', react: '19' }, { 'tsconfig.json': '{}' }, 'components/QrScanner.tsx', /'use client'[\s\S]*from 'k-qr-scanner\/react'/],
-  ['react', { react: '19' }, {}, 'src/components/QrScanner.jsx', /from 'k-qr-scanner\/react'/],
-  ['nuxt', { nuxt: '3' }, {}, 'components/QrScanner.client.vue', /lang="ts"[\s\S]*from 'k-qr-scanner\/vue'/],
-  ['vue', { vue: '3' }, {}, 'src/components/QrScanner.vue', /from 'k-qr-scanner\/vue'/],
-  ['sveltekit', { '@sveltejs/kit': '2', svelte: '5' }, {}, 'src/lib/QrScanner.svelte', /from 'k-qr-scanner\/svelte'/],
+  ['next', { next: '15', react: '19' }, { 'tsconfig.json': '{}' }, 'components/QrScanner.tsx', /'use client'[\s\S]*from 'kqr-scanner\/react'/],
+  ['react', { react: '19' }, {}, 'src/components/QrScanner.jsx', /from 'kqr-scanner\/react'/],
+  ['nuxt', { nuxt: '3' }, {}, 'components/QrScanner.client.vue', /lang="ts"[\s\S]*from 'kqr-scanner\/vue'/],
+  ['vue', { vue: '3' }, {}, 'src/components/QrScanner.vue', /from 'kqr-scanner\/vue'/],
+  ['sveltekit', { '@sveltejs/kit': '2', svelte: '5' }, {}, 'src/lib/QrScanner.svelte', /from 'kqr-scanner\/svelte'/],
   ['angular', { '@angular/core': '19' }, {}, 'src/app/qr-scanner.component.ts', /<kqr-scanner[\s\S]*CUSTOM_ELEMENTS_SCHEMA|CUSTOM_ELEMENTS_SCHEMA[\s\S]*<kqr-scanner/],
-  ['react-native', { 'react-native': '0.80', react: '19' }, { 'tsconfig.json': '{}' }, 'components/QrScanner.tsx', /^(?![\s\S]*PermissionsAndroid)[\s\S]*from 'k-qr-scanner\/react-native'/],
-  ['react-native', { expo: '54', 'react-native': '0.81', react: '19' }, {}, 'components/QrScanner.jsx', /from 'k-qr-scanner\/react-native'/],
+  ['react-native', { 'react-native': '0.80', react: '19' }, { 'tsconfig.json': '{}' }, 'components/QrScanner.tsx', /^(?![\s\S]*PermissionsAndroid)[\s\S]*from 'kqr-scanner\/react-native'/],
+  ['react-native', { expo: '54', 'react-native': '0.81', react: '19' }, {}, 'components/QrScanner.jsx', /from 'kqr-scanner\/react-native'/],
   ['vanilla', {}, {}, 'qr-scanner.js', /scanQR/],
 ];
 
@@ -54,7 +54,7 @@ test('init picks the package manager from the lockfile', () => {
   const dir = project({ react: '19' }, { 'pnpm-lock.yaml': '' });
   const r = run(dir, 'init', '--dry-run');
   assert.match(r.stdout, /package manager\s+pnpm/);
-  assert.match(r.stdout, /\$ pnpm add k-qr-scanner/);
+  assert.match(r.stdout, /\$ pnpm add kqr-scanner/);
 });
 
 test('init rejects an unknown theme and a missing package.json', () => {
@@ -72,19 +72,19 @@ test('doctor flags a CSP that blocks workers / WebAssembly', () => {
 
 test('--version and --help', () => {
   assert.match(run(tmpdir(), '--version').stdout, /^\d+\.\d+\.\d+/);
-  assert.match(run(tmpdir(), '--help').stdout, /npx k-qr-scanner init/);
+  assert.match(run(tmpdir(), '--help').stdout, /npx kqr-scanner init/);
 });
 
 test('init for React Native also installs react-native-webview (expo install on Expo)', () => {
   const bare = run(project({ 'react-native': '0.80', react: '19' }, { 'yarn.lock': '' }), 'init', '--dry-run');
-  assert.match(bare.stdout, /\$ yarn add k-qr-scanner[\s\S]*\$ yarn add react-native-webview/);
+  assert.match(bare.stdout, /\$ yarn add kqr-scanner[\s\S]*\$ yarn add react-native-webview/);
   assert.match(bare.stdout, /pod install/);
   const expo = run(project({ expo: '54', 'react-native': '0.81', react: '19' }), 'init', '--dry-run');
   assert.match(expo.stdout, /\$ npx expo install react-native-webview/);
 });
 
 test('doctor checks the React Native camera setup', () => {
-  const dir = project({ 'react-native': '0.80', react: '19', 'k-qr-scanner': '0.1.0' }, {
+  const dir = project({ 'react-native': '0.80', react: '19', 'kqr-scanner': '0.1.0' }, {
     'android/app/src/main/AndroidManifest.xml': '<manifest></manifest>',
     'ios/App/Info.plist': '<plist><key>NSCameraUsageDescription</key></plist>',
   });
@@ -124,15 +124,15 @@ test('init writes the camera permission into a bare React Native app (once)', ()
   assert.match(run(dir, 'doctor').stdout, /iOS camera usage description set[\s\S]*Android CAMERA permission declared/);
 });
 
-test('init adds the k-qr-scanner config plugin to an Expo app.json', () => {
+test('init adds the kqr-scanner config plugin to an Expo app.json', () => {
   const dir = project({ expo: '54', 'react-native': '0.81', react: '19' }, {
     'app.json': JSON.stringify({ expo: { name: 'a', plugins: ['expo-router'] } }, null, 2),
   });
   assert.equal(run(dir, 'init', '--no-install').status, 0);
   const app = JSON.parse(readFileSync(join(dir, 'app.json'), 'utf8'));
-  assert.deepEqual(app.expo.plugins, ['expo-router', 'k-qr-scanner']);
+  assert.deepEqual(app.expo.plugins, ['expo-router', 'kqr-scanner']);
   run(dir, 'init', '--no-install');
-  assert.deepEqual(JSON.parse(readFileSync(join(dir, 'app.json'), 'utf8')).expo.plugins, ['expo-router', 'k-qr-scanner']);
+  assert.deepEqual(JSON.parse(readFileSync(join(dir, 'app.json'), 'utf8')).expo.plugins, ['expo-router', 'kqr-scanner']);
   assert.match(run(dir, 'doctor').stdout, /iOS camera usage description set[\s\S]*Android CAMERA permission declared/);
 });
 

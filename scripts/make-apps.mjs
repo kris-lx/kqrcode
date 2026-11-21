@@ -4,7 +4,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = process.argv[2];
-const TGZ = 'file:../k-qr-scanner-0.1.0.tgz';
+const TGZ = 'file:../kqr-scanner-0.2.0.tgz';
 const w = (app, file, content) => {
   const f = join(ROOT, app, file);
   mkdirSync(join(f, '..'), { recursive: true });
@@ -17,7 +17,7 @@ const SLOT_LABEL = 'My QR';
 w('react-vite', 'package.json', {
   name: 'react-vite', private: true, type: 'module',
   scripts: { build: 'tsc --noEmit && vite build', preview: 'vite preview --port 4101 --strictPort' },
-  dependencies: { react: '^19.1.0', 'react-dom': '^19.1.0', 'k-qr-scanner': TGZ },
+  dependencies: { react: '^19.1.0', 'react-dom': '^19.1.0', 'kqr-scanner': TGZ },
   devDependencies: { vite: '^6.3.0', '@vitejs/plugin-react': '^4.5.0', typescript: '~5.8.0', '@types/react': '^19.1.0', '@types/react-dom': '^19.1.0' },
 });
 w('react-vite', 'vite.config.ts', `import { defineConfig } from 'vite'; import react from '@vitejs/plugin-react'; export default defineConfig({ plugins: [react()] });`);
@@ -25,8 +25,8 @@ w('react-vite', 'tsconfig.json', { compilerOptions: { target: 'ES2022', module: 
 w('react-vite', 'index.html', `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>`);
 w('react-vite', 'src/main.tsx', `import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { QRScanner } from 'k-qr-scanner/react';
-import type { ScanResult } from 'k-qr-scanner';
+import { QRScanner } from 'kqr-scanner/react';
+import type { ScanResult } from 'kqr-scanner';
 function App() {
   const [r, setR] = useState<string>('');
   return <>
@@ -43,7 +43,7 @@ createRoot(document.getElementById('root')!).render(<App />);
 w('next', 'package.json', {
   name: 'next-app', private: true,
   scripts: { build: 'next build', start: 'next start -p 4102' },
-  dependencies: { next: '^15.3.0', react: '^19.1.0', 'react-dom': '^19.1.0', 'k-qr-scanner': TGZ },
+  dependencies: { next: '^15.3.0', react: '^19.1.0', 'react-dom': '^19.1.0', 'kqr-scanner': TGZ },
   devDependencies: { typescript: '~5.8.0', '@types/react': '^19.1.0', '@types/node': '^22.0.0' },
 });
 w('next', 'tsconfig.json', { compilerOptions: { target: 'ES2022', lib: ['dom', 'esnext'], strict: true, skipLibCheck: true, noEmit: true, module: 'esnext', moduleResolution: 'bundler', jsx: 'preserve', esModuleInterop: true, isolatedModules: true, incremental: false, plugins: [{ name: 'next' }] }, include: ['**/*.ts', '**/*.tsx'], exclude: ['node_modules'] });
@@ -54,7 +54,7 @@ w('next', 'app/page.tsx', `import Scan from './scan';
 export default function Page() { return <main><h1>SSR ok</h1><Scan /></main>; }`);
 w('next', 'app/scan.tsx', `'use client';
 import { useState } from 'react';
-import { QRScanner } from 'k-qr-scanner/react';
+import { QRScanner } from 'kqr-scanner/react';
 export default function Scan() {
   const [r, setR] = useState('');
   return <>
@@ -67,13 +67,13 @@ export default function Scan() {
 w('nuxt', 'package.json', {
   name: 'nuxt-app', private: true, type: 'module',
   scripts: { build: 'nuxt build', start: 'node .output/server/index.mjs' },
-  dependencies: { nuxt: '^3.17.0', vue: '^3.5.0', 'k-qr-scanner': TGZ },
+  dependencies: { nuxt: '^3.17.0', vue: '^3.5.0', 'kqr-scanner': TGZ },
 });
 w('nuxt', 'nuxt.config.ts', `export default defineNuxtConfig({ compatibilityDate: '2025-01-01', devtools: { enabled: false },
   vue: { compilerOptions: { isCustomElement: (t: string) => t === 'kqr-scanner' } } });`);
 w('nuxt', 'app.vue', `<script setup lang="ts">
 import { ref } from 'vue';
-import { QRScanner } from 'k-qr-scanner/vue';
+import { QRScanner } from 'kqr-scanner/vue';
 const r = ref('');
 </script>
 <template>
@@ -90,14 +90,14 @@ const r = ref('');
 w('sveltekit', 'package.json', {
   name: 'sveltekit-app', private: true, type: 'module',
   scripts: { build: 'vite build', start: 'node build' },
-  dependencies: { 'k-qr-scanner': TGZ },
+  dependencies: { 'kqr-scanner': TGZ },
   devDependencies: { '@sveltejs/kit': '^2.21.0', '@sveltejs/adapter-node': '^5.2.0', '@sveltejs/vite-plugin-svelte': '^5.0.0', svelte: '^5.33.0', vite: '^6.3.0', typescript: '~5.8.0' },
 });
 w('sveltekit', 'svelte.config.js', `import adapter from '@sveltejs/adapter-node'; export default { kit: { adapter: adapter() } };`);
 w('sveltekit', 'vite.config.js', `import { sveltekit } from '@sveltejs/kit/vite'; import { defineConfig } from 'vite'; export default defineConfig({ plugins: [sveltekit()] });`);
 w('sveltekit', 'src/app.html', `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">%sveltekit.head%</head><body><div>%sveltekit.body%</div></body></html>`);
 w('sveltekit', 'src/routes/+page.svelte', `<script lang="ts">
-  import { qrScanner } from 'k-qr-scanner/svelte';
+  import { qrScanner } from 'kqr-scanner/svelte';
   let r = $state('');
 </script>
 <h1>SSR ok</h1>
@@ -112,7 +112,7 @@ w('angular', 'package.json', {
   scripts: { build: 'ng build', start: 'node serve.mjs' },
   dependencies: {
     '@angular/core': '^19.2.0', '@angular/common': '^19.2.0', '@angular/compiler': '^19.2.0', '@angular/platform-browser': '^19.2.0',
-    rxjs: '^7.8.0', tslib: '^2.8.0', 'zone.js': '~0.15.0', 'k-qr-scanner': TGZ,
+    rxjs: '^7.8.0', tslib: '^2.8.0', 'zone.js': '~0.15.0', 'kqr-scanner': TGZ,
   },
   devDependencies: { '@angular/build': '^19.2.0', '@angular/cli': '^19.2.0', '@angular/compiler-cli': '^19.2.0', typescript: '~5.7.0' },
 });
@@ -128,8 +128,8 @@ w('angular', 'tsconfig.json', { compilerOptions: { target: 'ES2022', module: 'ES
 w('angular', 'src/index.html', `<!doctype html><html><head><meta charset="utf-8"><base href="/"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><app-root></app-root></body></html>`);
 w('angular', 'src/main.ts', `import { Component, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { bootstrapApplication } from '@angular/platform-browser';
-import 'k-qr-scanner';
-import type { ScanResult } from 'k-qr-scanner';
+import 'kqr-scanner';
+import type { ScanResult } from 'kqr-scanner';
 
 @Component({
   selector: 'app-root',
