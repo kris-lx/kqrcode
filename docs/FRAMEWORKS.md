@@ -3,7 +3,7 @@
 The quickest start in any project is:
 
 ```bash
-npx @krislxx/k-qr-scanner init
+npx k-qr-scanner init
 ```
 
 It detects the framework and writes a component like the ones below.
@@ -55,7 +55,7 @@ Svelte has no `noClose`; use the `<kqr-scanner>` tag with `no-close` instead. Ev
 
 ```tsx
 import { useState } from 'react';
-import { QRScanner } from '@krislxx/k-qr-scanner/react';
+import { QRScanner } from 'k-qr-scanner/react';
 
 export function PayButton() {
   const [open, setOpen] = useState(false);
@@ -88,7 +88,7 @@ The React wrapper ships with `'use client'`, so you can use it straight from a s
 // app/scan/page.tsx
 import dynamic from 'next/dynamic';
 
-const QRScanner = dynamic(() => import('@krislxx/k-qr-scanner/react').then((m) => m.QRScanner), { ssr: false });
+const QRScanner = dynamic(() => import('k-qr-scanner/react').then((m) => m.QRScanner), { ssr: false });
 
 export default function Page() {
   return <QRScanner locale="lo" onScan={(r) => console.log(r.text)} />;
@@ -100,8 +100,8 @@ export default function Page() {
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue';
-import { QRScanner } from '@krislxx/k-qr-scanner/vue';
-import type { ScanResult } from '@krislxx/k-qr-scanner';
+import { QRScanner } from 'k-qr-scanner/vue';
+import type { ScanResult } from 'k-qr-scanner';
 
 const open = ref(false);
 function onScan(r: ScanResult) {
@@ -132,7 +132,7 @@ Render the scanner on the client only, with `<ClientOnly>` or a `*.client.vue` c
 ```vue
 <!-- pages/scan.vue -->
 <script setup lang="ts">
-import { QRScanner } from '@krislxx/k-qr-scanner/vue';
+import { QRScanner } from 'k-qr-scanner/vue';
 </script>
 
 <template>
@@ -148,7 +148,7 @@ The Svelte entry is an action. Actions only run in the browser, so it is safe in
 
 ```svelte
 <script lang="ts">
-  import { qrScanner } from '@krislxx/k-qr-scanner/svelte';
+  import { qrScanner } from 'k-qr-scanner/svelte';
   let open = $state(false);
 </script>
 
@@ -165,7 +165,7 @@ Svelte 5 only allows `slot="…"` inside custom elements, so children of the act
 
 ```svelte
 <script>
-  import '@krislxx/k-qr-scanner';
+  import 'k-qr-scanner';
 </script>
 
 <kqr-scanner theme="alipay" locale="lo" onscan={(e) => pay(e.detail.text)}>
@@ -179,8 +179,8 @@ Import the package once to register the element, and allow custom elements in th
 
 ```ts
 import { Component, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
-import '@krislxx/k-qr-scanner';
-import type { ScanResult } from '@krislxx/k-qr-scanner';
+import 'k-qr-scanner';
+import type { ScanResult } from 'k-qr-scanner';
 
 @Component({
   selector: 'app-scan',
@@ -207,17 +207,17 @@ The import is safe with Angular SSR; the element only activates in the browser. 
 ## React Native and Expo
 
 ```tsx
-import { QRScanner } from '@krislxx/k-qr-scanner/react-native';
+import { QRScanner } from 'k-qr-scanner/react-native';
 
 <QRScanner style={{ flex: 1 }} locale="lo" onScan={(r) => pay(r.text)} onClose={() => setOpen(false)} />
 ```
 
-It needs `react-native-webview` and the camera permissions; `npx @krislxx/k-qr-scanner init` sets up both. Everything else is in [REACT_NATIVE.md](REACT_NATIVE.md).
+It needs `react-native-webview` and the camera permissions; `npx k-qr-scanner init` sets up both. Everything else is in [REACT_NATIVE.md](REACT_NATIVE.md).
 
 ## Plain HTML
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/@krislxx/k-qr-scanner/dist/kqrcode.global.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/k-qr-scanner/dist/kqrcode.global.js"></script>
 
 <button id="scan">Scan</button>
 <script>
@@ -228,7 +228,7 @@ It needs `react-native-webview` and the camera permissions; `npx @krislxx/k-qr-s
 </script>
 ```
 
-The script build (17 kB gzip) defines the global `KQRCode` and registers `<kqr-scanner>`. It loads the engine from `kqrcode.engine.js` in the same directory when the scanner first opens. Pin a version in production, e.g. `@krislxx/k-qr-scanner@0.2.0`, or self-host `kqrcode.global.js`, `kqrcode.engine.js` and `kqrcode.jsqr.js` together.
+The script build (17 kB gzip) defines the global `KQRCode` and registers `<kqr-scanner>`. It loads the engine from `kqrcode.engine.js` in the same directory when the scanner first opens. Pin a version in production, e.g. `k-qr-scanner@0.2.0`, or self-host `kqrcode.global.js`, `kqrcode.engine.js` and `kqrcode.jsqr.js` together.
 
 ## Content-Security-Policy
 
@@ -238,4 +238,4 @@ The engine runs WebAssembly in a worker created from a `blob:` URL, so a CSP nee
 worker-src blob:; script-src 'self' 'wasm-unsafe-eval'
 ```
 
-With `superResolution: 'webgpu'`, also allow the ONNX Runtime CDN in `script-src` and `connect-src`, or self-host it and set `onnx-runtime-url`. If workers or WebAssembly are blocked, the scanner falls back to jsQR on the main thread: it still works, but slower, without super-resolution, and for regular QR codes only. `npx @krislxx/k-qr-scanner doctor` finds a CSP in your HTML and checks it.
+With `superResolution: 'webgpu'`, also allow the ONNX Runtime CDN in `script-src` and `connect-src`, or self-host it and set `onnx-runtime-url`. If workers or WebAssembly are blocked, the scanner falls back to jsQR on the main thread: it still works, but slower, without super-resolution, and for regular QR codes only. `npx k-qr-scanner doctor` finds a CSP in your HTML and checks it.

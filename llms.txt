@@ -2,20 +2,20 @@
 
 > Full-screen QR code scanner for the web and React Native, in the style of WeChat and Alipay. It reads codes anywhere in the camera view, at any angle, and zooms in by itself on far codes. ZXing-C++ (WebAssembly) in a Web Worker, optional WeChat super-resolution (WebGPU). Reads QR Code, Micro QR and rMQR. React, Next.js, Vue, Nuxt, Svelte, SvelteKit, Angular, React Native (iOS, Android, Expo), plain HTML. ESM, CJS and a script build; TypeScript types; safe to import during SSR.
 
-Install: `npx @krislxx/k-qr-scanner init` (detects the framework, installs, writes a component; React Native: also installs react-native-webview and adds camera permissions) or `npm install @krislxx/k-qr-scanner`.
+Install: `npx k-qr-scanner init` (detects the framework, installs, writes a component; React Native: also installs react-native-webview and adds camera permissions) or `npm install k-qr-scanner`.
 Needs HTTPS (or localhost). A CSP must allow `worker-src blob:` and `script-src 'wasm-unsafe-eval'`.
 Formerly published as `kqr-scanner`; the API is unchanged. The custom element is still `<kqr-scanner>`.
 
 ## Entry points
 
-- `@krislxx/k-qr-scanner`: scanQR, QRScanner, ScanError, QR_FORMATS, KQRScannerElement, defineScannerElement, LABELS, THEME_VARS, TAG_NAME ('kqr-scanner'). Importing it registers <kqr-scanner> (browser only).
-- `@krislxx/k-qr-scanner/react`: <QRScanner> ('use client')
-- `@krislxx/k-qr-scanner/vue`: <QRScanner>
-- `@krislxx/k-qr-scanner/svelte`: qrScanner action
-- `@krislxx/k-qr-scanner/react-native`: <QRScanner> for iOS, Android and Expo; runs the web scanner in react-native-webview (peer dependency) with the engine bundled (offline)
-- `@krislxx/k-qr-scanner/sr`: superResolve, createOnnxSuperRes, srModelBytes (the super-resolution model on its own)
-- `@krislxx/k-qr-scanner/app.plugin.js`: Expo config plugin, used as "plugins": ["@krislxx/k-qr-scanner"]
-- Script build: https://cdn.jsdelivr.net/npm/@krislxx/k-qr-scanner/dist/kqrcode.global.js (global `KQRCode`, 17 kB gzip; loads kqrcode.engine.js from the same directory on first use)
+- `k-qr-scanner`: scanQR, QRScanner, ScanError, QR_FORMATS, KQRScannerElement, defineScannerElement, LABELS, THEME_VARS, TAG_NAME ('kqr-scanner'). Importing it registers <kqr-scanner> (browser only).
+- `k-qr-scanner/react`: <QRScanner> ('use client')
+- `k-qr-scanner/vue`: <QRScanner>
+- `k-qr-scanner/svelte`: qrScanner action
+- `k-qr-scanner/react-native`: <QRScanner> for iOS, Android and Expo; runs the web scanner in react-native-webview (peer dependency) with the engine bundled (offline)
+- `k-qr-scanner/sr`: superResolve, createOnnxSuperRes, srModelBytes (the super-resolution model on its own)
+- `k-qr-scanner/app.plugin.js`: Expo config plugin, used as "plugins": ["k-qr-scanner"]
+- Script build: https://cdn.jsdelivr.net/npm/k-qr-scanner/dist/kqrcode.global.js (global `KQRCode`, 17 kB gzip; loads kqrcode.engine.js from the same directory on first use)
 
 ## scanQR(options?): Promise<ScanResult>
 
@@ -41,8 +41,8 @@ Labels: hint, zooming, dark, torchOn, torchOff, gallery, noQrInImage, close, per
 React: <QRScanner theme locale heading labels facing continuous inline success torch zoomControl maxZoom superResolution formats accept noAutoZoom noGallery noTorch noBeep noVibrate noClose style onScan onReject onError onClose onReady>{children with slot="…"}</QRScanner>. Callbacks always see the latest props.
 Vue: the same props; emits scan, reject, error, close, ready; the default slot goes into the UI. Nuxt: render in <ClientOnly> or a *.client.vue component.
 Svelte: <div use:qrScanner={{ …same options except noClose, onScan, onReject, onError, onClose, onReady, style }}>; children use data-slot="…" instead of slot.
-Angular: import '@krislxx/k-qr-scanner'; add CUSTOM_ELEMENTS_SCHEMA; <kqr-scanner (scan)="f($any($event).detail)">.
-React Native: <QRScanner style={{ flex: 1 }} …same props as React… keepCamera cssVars={{ '--kqr-accent': '#e60012' }} slots={{ 'actions-left': '<button data-kqr-id="mine">My QR</button>' }} onSlotPress={(slot, id) => …} scriptUrl? webViewProps? />. Ref (QRScannerHandle): resume(), start(), stop(), close(), toggleTorch(on?), pickImage(). Needs NSCameraUsageDescription (iOS) and android.permission.CAMERA; `npx @krislxx/k-qr-scanner init` writes them (Expo: adds the "@krislxx/k-qr-scanner" plugin to app.json; option cameraPermission sets the iOS text). The component requests the Android runtime permission itself, releases the camera while the app is in the background, and reloads if the WebView process dies. Changing a non-callback prop reloads the scanner. iOS 14.5+, Android 7+, react-native-webview 13+.
+Angular: import 'k-qr-scanner'; add CUSTOM_ELEMENTS_SCHEMA; <kqr-scanner (scan)="f($any($event).detail)">.
+React Native: <QRScanner style={{ flex: 1 }} …same props as React… keepCamera cssVars={{ '--kqr-accent': '#e60012' }} slots={{ 'actions-left': '<button data-kqr-id="mine">My QR</button>' }} onSlotPress={(slot, id) => …} scriptUrl? webViewProps? />. Ref (QRScannerHandle): resume(), start(), stop(), close(), toggleTorch(on?), pickImage(). Needs NSCameraUsageDescription (iOS) and android.permission.CAMERA; `npx k-qr-scanner init` writes them (Expo: adds the "k-qr-scanner" plugin to app.json; option cameraPermission sets the iOS text). The component requests the Android runtime permission itself, releases the camera while the app is in the background, and reloads if the WebView process dies. Changing a non-callback prop reloads the scanner. iOS 14.5+, Android 7+, react-native-webview 13+.
 
 ## QRScanner (headless)
 
@@ -59,8 +59,8 @@ ScanError extends Error { code: 'permission-denied' | 'no-camera' | 'camera-busy
 
 ## CLI
 
-npx @krislxx/k-qr-scanner init [--framework next|nuxt|sveltekit|svelte|angular|vue|react-native|react|vanilla] [--pm npm|pnpm|yarn|bun] [--theme X] [--locale X] [--out path] [--from spec] [--no-install] [--force] [--dry-run] [--cwd dir]
-npx @krislxx/k-qr-scanner doctor: checks Node, the installation, framework setup (React Native: WebView and camera permissions) and a CSP that would block the engine.
+npx k-qr-scanner init [--framework next|nuxt|sveltekit|svelte|angular|vue|react-native|react|vanilla] [--pm npm|pnpm|yarn|bun] [--theme X] [--locale X] [--out path] [--from spec] [--no-install] [--force] [--dry-run] [--cwd dir]
+npx k-qr-scanner doctor: checks Node, the installation, framework setup (React Native: WebView and camera permissions) and a CSP that would block the engine.
 
 ## Notes
 
