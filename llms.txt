@@ -1,61 +1,70 @@
-# kqrcode
+# k-qr-scanner
 
-> Full-screen QR code scanner for the web (WeChat/Alipay style). It scans the whole camera view at any angle and auto-zooms on far codes. ZXing-C++ WASM decoder in a Web Worker, optional WeChat super-resolution (WebGPU). React, React Native (WebView), Vue, Svelte, Angular, plain HTML. ESM + CJS + IIFE, TypeScript types, SSR-safe imports.
+> Full-screen QR code scanner for the web and React Native, in the style of WeChat and Alipay. It reads codes anywhere in the camera view, at any angle, and zooms in by itself on far codes. ZXing-C++ (WebAssembly) in a Web Worker, optional WeChat super-resolution (WebGPU). Reads QR Code, Micro QR and rMQR. React, Next.js, Vue, Nuxt, Svelte, SvelteKit, Angular, React Native (iOS, Android, Expo), plain HTML. ESM, CJS and a script build; TypeScript types; safe to import during SSR.
 
-Install: `npx kqr-scanner init` (auto-detects the framework and writes a component) or `npm i kqr-scanner`.
-Requires HTTPS (or localhost). CSP needs: `worker-src blob:` and `script-src 'wasm-unsafe-eval'`.
+Install: `npx k-qr-scanner init` (detects the framework, installs, writes a component; React Native: also installs react-native-webview and adds camera permissions) or `npm install k-qr-scanner`.
+Needs HTTPS (or localhost). A CSP must allow `worker-src blob:` and `script-src 'wasm-unsafe-eval'`.
+Formerly published as `kqr-scanner`; the API is unchanged. The custom element is still `<kqr-scanner>`.
 
 ## Entry points
 
-- `kqr-scanner`: scanQR, QRScanner, ScanError, QR_FORMATS, KQRScannerElement, defineScannerElement, LABELS, THEME_VARS, TAG_NAME ('kqr-scanner'). Registers <kqr-scanner> on import (browser only).
-- `kqr-scanner/react`: <QRScanner> (client component)
-- `kqr-scanner/vue`: <QRScanner>
-- `kqr-scanner/svelte`: qrScanner action
-- `kqr-scanner/react-native`: <QRScanner> for iOS/Android/Expo; runs the scanner in react-native-webview (peer dependency), engine bundled (offline)
-- `kqr-scanner/sr`: superResolve, createOnnxSuperRes, srModelBytes (the model on its own)
-- CDN: https://cdn.jsdelivr.net/npm/kqr-scanner/dist/kqrcode.global.js (global `KQRCode`, 17 kB; loads kqrcode.engine.js from the same directory on first use)
+- `k-qr-scanner`: scanQR, QRScanner, ScanError, QR_FORMATS, KQRScannerElement, defineScannerElement, LABELS, THEME_VARS, TAG_NAME ('kqr-scanner'). Importing it registers <kqr-scanner> (browser only).
+- `k-qr-scanner/react`: <QRScanner> ('use client')
+- `k-qr-scanner/vue`: <QRScanner>
+- `k-qr-scanner/svelte`: qrScanner action
+- `k-qr-scanner/react-native`: <QRScanner> for iOS, Android and Expo; runs the web scanner in react-native-webview (peer dependency) with the engine bundled (offline)
+- `k-qr-scanner/sr`: superResolve, createOnnxSuperRes, srModelBytes (the super-resolution model on its own)
+- `k-qr-scanner/app.plugin.js`: Expo config plugin, used as "plugins": ["k-qr-scanner"]
+- Script build: https://cdn.jsdelivr.net/npm/k-qr-scanner/dist/kqrcode.global.js (global `KQRCode`, 17 kB gzip; loads kqrcode.engine.js from the same directory on first use)
 
 ## scanQR(options?): Promise<ScanResult>
 
-Opens the scanner, resolves with the first code and removes itself. Rejects with ScanError (camera problem), or with a DOMException named 'AbortError' (user closed it or the signal aborted).
-options: theme ('wechat'|'alipay'|'grid'|'frame'|'none'), locale ('en'|'lo'|'zh'), heading, labels, facing ('environment'|'user'), success ('dot'|'box'|'none'), torch ('auto'|'always'|'never'), zoomControl ('slider'|'none'), gallery, beep, vibrate, autoZoom (booleans, default true), maxZoom (8), superResolution ('js'|'webgpu'|'off', default 'js'), onnxRuntimeUrl, style (CSS variables), slots ({ [slotName]: Node|string }), container (HTMLElement), inline (boolean), signal (AbortSignal), formats (QRFormat[], default all), accept ((r) => true|void accept · false ignore · string ignore + show it; may be async), onReject ((r, message?) => void).
+Opens the scanner, resolves with the first accepted code and removes itself. Rejects with ScanError (camera problem) or a DOMException (the user closed it, or the signal aborted).
+Options: theme ('wechat' | 'alipay' | 'grid' | 'frame' | 'none'), locale ('en' | 'lo' | 'zh'), heading, labels, facing ('environment' | 'user'), success ('dot' | 'box' | 'none'), torch ('auto' | 'always' | 'never'), zoomControl ('slider' | 'none'), autoZoom, gallery, beep, vibrate (booleans, default true), maxZoom (8), superResolution ('js' | 'webgpu' | 'off', default 'js'), onnxRuntimeUrl, formats (QRFormat[], default all), accept (AcceptFn), onReject ((result, message?) => void), style (CSS variables), slots ({ [slot]: Node | string }), container (HTMLElement), inline (boolean), signal (AbortSignal).
 
-Reads the whole QR family: QR Code (Model 1/2), Micro QR, rMQR. A code turned down by accept is ignored while in view; scanning continues. Photos go through accept too.
+## accept
 
-## <kqr-scanner> attributes
+AcceptFn = (result) => boolean | string | void | Promise<…>. Runs for every decoded code (camera and photos) before it becomes the result. true or nothing: accept. false: ignore and keep scanning. A string: ignore, keep scanning and show the string. Throwing counts as false. A turned-down code is not checked again while it stays in view (re-checked after 2 s out of view, or after resume()). Available on scanQR, the element (el.accept), QRScanner and every wrapper; the `reject` event / onReject reports turned-down codes.
 
-theme, locale, heading, facing, continuous, inline, success, torch, zoom-control, max-zoom, super-resolution, onnx-runtime-url, formats ("qr_code micro_qr_code rm_qr_code"), no-auto-zoom, no-close, no-gallery, no-beep, no-vibrate, no-candidates, keep-camera, manual, request-fullscreen.
-Events (CustomEvent.detail): scan (ScanResult), reject ({ result, message? }), error (ScanError), close, ready, zoom ({zoom,min,max,auto,digital}).
-Methods: start(), stop(), close(), resume(), pickImage(), toggleTorch(on?). Property: labels (Partial<ScannerLabels>), accept (AcceptFn), scanner (QRScanner).
+## <kqr-scanner>
+
+Attributes: theme, locale, heading, facing, success, torch, zoom-control, max-zoom, super-resolution, onnx-runtime-url, formats ("qr_code micro_qr_code rm_qr_code"), continuous, keep-camera, inline, manual, request-fullscreen, no-auto-zoom, no-torch, no-gallery, no-close, no-beep, no-vibrate, no-candidates.
+Events (CustomEvent.detail): ready, scan (ScanResult), reject ({ result, message? }), error (ScanError), close, zoom ({ zoom, min, max, auto, digital }).
+Methods: start(), stop(), close(), resume() (reopens the camera if stopped), pickImage(), toggleTorch(on?). Properties: accept, labels (Partial<ScannerLabels>), active (read-only), scanner (QRScanner | null).
 Slots: top-left, top-center, top-right, hint, actions-left, actions-right, footer, error.
 Parts: stage, video, candidates, effect, scanline, frame, success, focus-ring, top, title, close, bottom, hint, torch, zoom, actions, gallery, error.
 CSS variables: --kqr-accent, --kqr-success, --kqr-mask, --kqr-frame-size, --kqr-frame-top, --kqr-frame-radius, --kqr-corner-size, --kqr-corner-width, --kqr-scan-duration, --kqr-line-width, --kqr-text, --kqr-font, --kqr-button-bg, --kqr-button-size, --kqr-bg.
+Labels: hint, zooming, dark, torchOn, torchOff, gallery, noQrInImage, close, permission, noCamera, busy, insecure, unsupported.
 
 ## Wrappers
 
-React: <QRScanner theme locale heading facing continuous inline success torch zoomControl maxZoom superResolution noAutoZoom noGallery noTorch noBeep noVibrate noClose labels style formats accept onScan onReject onError onClose onReady>{children with slot="…"}</QRScanner>
-Vue: same props in camelCase; emits scan, reject, error, close, ready; the default slot is passed through.
-Svelte: <div use:qrScanner={{ ...sameOptions, formats, accept, onScan, onReject, onError, onClose, onReady, style }}> ; children use data-slot="…" (not slot=).
-Angular: import 'kqr-scanner'; add CUSTOM_ELEMENTS_SCHEMA; <kqr-scanner (scan)="f($any($event).detail)">.
-React Native: <QRScanner style={{flex:1}} …same props… cssVars={{'--kqr-accent':'#e60012'}} slots={{'actions-left':'<button data-kqr-id="mine">My QR</button>'}} onSlotPress={(slot,id)=>…} keepCamera scriptUrl? webViewProps? />; ref: resume(), start(), stop(), close(), toggleTorch(on?), pickImage(). Setup: npx kqr-scanner init (installs react-native-webview, writes NSCameraUsageDescription + android.permission.CAMERA; Expo: adds "plugins": ["kqr-scanner"] to app.json). The component requests the Android runtime permission itself, releases the camera in the background and reloads if the WebView process dies. Guide: docs/REACT_NATIVE.md.
-Nuxt: render client-only (<ClientOnly> or *.client.vue). Next.js: the wrapper already has 'use client'.
+React: <QRScanner theme locale heading labels facing continuous inline success torch zoomControl maxZoom superResolution formats accept noAutoZoom noGallery noTorch noBeep noVibrate noClose style onScan onReject onError onClose onReady>{children with slot="…"}</QRScanner>. Callbacks always see the latest props.
+Vue: the same props; emits scan, reject, error, close, ready; the default slot goes into the UI. Nuxt: render in <ClientOnly> or a *.client.vue component.
+Svelte: <div use:qrScanner={{ …same options except noClose, onScan, onReject, onError, onClose, onReady, style }}>; children use data-slot="…" instead of slot.
+Angular: import 'k-qr-scanner'; add CUSTOM_ELEMENTS_SCHEMA; <kqr-scanner (scan)="f($any($event).detail)">.
+React Native: <QRScanner style={{ flex: 1 }} …same props as React… keepCamera cssVars={{ '--kqr-accent': '#e60012' }} slots={{ 'actions-left': '<button data-kqr-id="mine">My QR</button>' }} onSlotPress={(slot, id) => …} scriptUrl? webViewProps? />. Ref (QRScannerHandle): resume(), start(), stop(), close(), toggleTorch(on?), pickImage(). Needs NSCameraUsageDescription (iOS) and android.permission.CAMERA; `npx k-qr-scanner init` writes them (Expo: adds the "k-qr-scanner" plugin to app.json; option cameraPermission sets the iOS text). The component requests the Android runtime permission itself, releases the camera while the app is in the background, and reloads if the WebView process dies. Changing a non-callback prop reloads the scanner. iOS 14.5+, Android 7+, react-native-webview 13+.
 
 ## QRScanner (headless)
 
-new QRScanner({ video: HTMLVideoElement, facingMode?, deviceId?, autoZoom? = true, maxZoom? = 8, continuous? = false, maxFrameSide? = 1920, hiRes? = true, superResolution?: 'js'|'webgpu'|false, onnxRuntimeUrl?, formats?: QRFormat[], accept?: AcceptFn })
-Methods: start(), stop(), pause(), resume(), switchCamera(), setZoom(z, byUser = true), setTorch(on): Promise<boolean>, focusAt(x, y), scanImage(Blob|ImageBitmap): Promise<ScanResult|null>, setFormats(formats?), setAccept(fn?), on(event, fn): unsubscribe.
-Static: QRScanner.preload() (download + compile the engine), QRScanner.dispose() (free the shared worker now), QRScanner.engineIdleTimeout (ms, default 30000), QRScanner.isSupported().
-Getters: zoom, zoomMin, zoomMax, canZoom, canTorch, isDigitalZoom, superResolutionBackend.
-Events: result (ScanResult), error (ScanError), hint ({ hint: {cx,cy,size,module,full}|null, decoded, videoWidth, videoHeight }), zoom, dark (boolean), reject ({ result, message? }).
+new QRScanner({ video: HTMLVideoElement, facingMode?, deviceId?, autoZoom? = true, maxZoom? = 8, continuous? = false (same code ignored for 1.5 s), maxFrameSide? = 1920, hiRes? = true, superResolution?: 'js' | 'webgpu' | false, onnxRuntimeUrl?, formats?: QRFormat[], accept?: AcceptFn })
+Methods: start(), stop(), pause(), resume(), switchCamera(), setZoom(zoom, byUser = true), setTorch(on): Promise<boolean>, focusAt(x, y) (0–1), scanImage(Blob | ImageBitmap): Promise<ScanResult | null>, setFormats(formats?), setAccept(fn?), on(event, fn): unsubscribe.
+Static: QRScanner.preload() (download and compile the engine), QRScanner.isSupported(), QRScanner.engineIdleTimeout (ms the shared engine stays warm, default 30000), QRScanner.dispose().
+Read-only: zoom, zoomMin, zoomMax, canZoom, canTorch, isDigitalZoom, superResolutionBackend ('js' | 'onnx-webgpu' | 'onnx-wasm' | 'off').
+Events: result (ScanResult), reject ({ result, message? }), error (ScanError), hint ({ hint: { cx, cy, size, module, full } | null, decoded, videoWidth, videoHeight }), zoom, dark (boolean).
 
 ## Types
 
-ScanResult { text: string; bytes: Uint8Array; corners: {x,y}[] (TL,TR,BR,BL in video px; [] for photos); format: 'qr_code'|'micro_qr_code'|'rm_qr_code'; version: string ('7', 'M3', 'R13x27', '' if unknown); ecLevel: string ('L'|'M'|'Q'|'H'|''); zoom: number; timestamp: number; source: 'camera'|'image' }
-ScanError extends Error { code: 'insecure-context'|'unsupported'|'permission-denied'|'no-camera'|'camera-busy'|'unknown' }
+ScanResult { text: string; bytes: Uint8Array; format: 'qr_code' | 'micro_qr_code' | 'rm_qr_code'; version: string ('7', 'M3', 'R13x27', '' if unknown); ecLevel: 'L' | 'M' | 'Q' | 'H' | ''; corners: { x, y }[] (TL, TR, BR, BL in video pixels; [] for photos); zoom: number; timestamp: number; source: 'camera' | 'image' }
+ScanError extends Error { code: 'permission-denied' | 'no-camera' | 'camera-busy' | 'insecure-context' | 'unsupported' | 'unknown' }
+
+## CLI
+
+npx k-qr-scanner init [--framework next|nuxt|sveltekit|svelte|angular|vue|react-native|react|vanilla] [--pm npm|pnpm|yarn|bun] [--theme X] [--locale X] [--out path] [--from spec] [--no-install] [--force] [--dry-run] [--cwd dir]
+npx k-qr-scanner doctor: checks Node, the installation, framework setup (React Native: WebView and camera permissions) and a CSP that would block the engine.
 
 ## Notes
 
-- Treat ScanResult.text as untrusted input. Validate it, and never inject it as HTML.
-- Call QRScanner.preload() early so the ~460 kB engine is downloaded and compiled before the first scan.
-- iOS Safari has no camera zoom API, so kqrcode uses digital zoom on a 4K stream.
-- CLI: `npx kqr-scanner init [--framework X] [--pm X] [--theme X] [--locale X] [--out path] [--no-install] [--force] [--dry-run]`, `npx kqr-scanner doctor`.
+- Treat ScanResult.text as untrusted input: validate it and never insert it as HTML.
+- Call QRScanner.preload() early so the ~460 kB engine is ready before the first scan.
+- iOS Safari has no camera zoom API; the scanner uses digital zoom on a 4K stream.
+- If a CSP blocks workers or WebAssembly, the scanner falls back to jsQR (regular QR codes only, no super-resolution).

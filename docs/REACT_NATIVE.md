@@ -1,55 +1,80 @@
 # React Native
 
-`kqr-scanner/react-native` gives iOS and Android apps, Expo included, the same scanner as the web: themes, auto-zoom, Micro QR and rMQR, the `accept` callback and album import.
+`k-qr-scanner/react-native` brings the same scanner to iOS and Android apps, Expo included: the themes, auto-zoom, Micro QR and rMQR, the `accept` callback and album import.
+
+- [Setup](#setup)
+- [Usage](#usage)
+- [Props](#props)
+- [Ref methods](#ref-methods)
+- [What the component handles for you](#what-the-component-handles-for-you)
+- [Platform notes](#platform-notes)
+- [Troubleshooting](#troubleshooting)
 
 ## How it works
 
-React Native has no DOM and no camera API in JavaScript, and Hermes cannot run WebAssembly. So the component renders a [`react-native-webview`](https://github.com/react-native-webview/react-native-webview) that runs the regular `<kqr-scanner>`. Events and the `accept` callback cross the bridge for you.
+React Native has no DOM and no camera API in JavaScript, and Hermes cannot run WebAssembly. So the component renders a [`react-native-webview`](https://github.com/react-native-webview/react-native-webview) and runs the regular web scanner inside it. Events and the `accept` callback cross between the WebView and your app automatically.
 
-The engine is bundled with the component (about 0.8 MB raw, 0.5 MB gzip), so the scanner works offline and needs no asset setup.
+The engine is bundled with the component, about 0.8 MB (0.5 MB gzip). The scanner works offline, and there are no assets to configure.
 
-## Install
+## Setup
 
 ```bash
-npx kqr-scanner init
+npx k-qr-scanner init
 ```
 
-That one command detects React Native or Expo and does the whole setup:
+In a React Native or Expo project, this one command:
 
-- installs `kqr-scanner` and `react-native-webview` (`npx expo install` on Expo, so the version matches your SDK);
-- writes the camera permission entries (see below);
-- writes a starter `components/QrScanner`.
+1. installs `k-qr-scanner` and `react-native-webview` (on Expo through `npx expo install`, so the WebView matches your SDK);
+2. adds the camera permissions (see below);
+3. writes a starter component, `components/QrScanner`.
 
-Then run `cd ios && pod install` (bare React Native) and rebuild the app. Expo Go works without a rebuild.
+Then:
 
-By hand: `npm install kqr-scanner react-native-webview`, then add the permission entries yourself.
+- **bare React Native**: run `cd ios && pod install` and rebuild the app;
+- **Expo Go**: nothing to do, it already includes the WebView and the camera permission;
+- **Expo development or EAS builds**: the next `npx expo prebuild` or EAS build applies the permissions.
 
-## Camera permission
+### Camera permissions
 
-Two entries are needed, and `npx kqr-scanner init` writes them:
-
-| app | what is added |
-|---|---|
-| Expo | `"plugins": ["kqr-scanner"]` in `app.json`. The plugin adds both entries on `expo prebuild` / EAS Build. |
-| bare iOS | `NSCameraUsageDescription` in `ios/<App>/Info.plist`. Without it, iOS ends the app when the camera opens. |
+| project | what `init` adds |
+| :--- | :--- |
+| Expo | `"plugins": ["k-qr-scanner"]` in `app.json`. The plugin writes both entries during prebuild. |
+| bare iOS | `NSCameraUsageDescription` in `ios/<App>/Info.plist` |
 | bare Android | `<uses-permission android:name="android.permission.CAMERA" />` in `android/app/src/main/AndroidManifest.xml` |
 
-To set your own iOS prompt text with Expo: `"plugins": [["kqr-scanner", { "cameraPermission": "Scan QR codes to pay" }]]`.
+> [!IMPORTANT]
+> Without `NSCameraUsageDescription`, iOS ends the app the moment the camera opens.
 
-There is no permission code to write. On Android the component asks for the runtime permission before it opens the WebView. iOS asks by itself when the camera starts, and only once (`mediaCapturePermissionGrantType` skips the second, web-level prompt). If the user says no, the scanner shows its "camera blocked" screen and `onError` gets `permission-denied`.
+To set your own iOS permission text with Expo:
 
-`npx kqr-scanner doctor` checks the WebView dependency and both permission entries.
+```json
+{ "expo": { "plugins": [["k-qr-scanner", { "cameraPermission": "Scan QR codes to pay" }]] } }
+```
+
+You don't need to write any permission code. On Android the component asks for the camera before it opens the scanner; on iOS the system asks once when the camera starts.
+
+`npx k-qr-scanner doctor` checks that the WebView is installed and that both permissions are in place.
+
+### Setting up by hand
+
+```bash
+npm install k-qr-scanner react-native-webview
+cd ios && pod install
+```
+
+Then add the two permission entries from the table above.
 
 ## Usage
 
 ```tsx
 import { useRef, useState } from 'react';
 import { Button, Modal } from 'react-native';
-import { QRScanner, type QRScannerHandle } from 'kqr-scanner/react-native';
+import { QRScanner, type QRScannerHandle } from 'k-qr-scanner/react-native';
 
 export function PayScreen() {
   const [open, setOpen] = useState(false);
   const scanner = useRef<QRScannerHandle>(null);
+
   return (
     <>
       <Button title="Scan to pay" onPress={() => setOpen(true)} />
@@ -65,8 +90,8 @@ export function PayScreen() {
           onScan={(r) => { setOpen(false); pay(r.text); }}
           onClose={() => setOpen(false)}
           onError={(e) => console.warn(e.code)}
-          slots={{ 'actions-left': '<button data-kqr-id="mine">My QR</button>' }}
-          onSlotPress={(slot, id) => id === 'mine' && showMyCode()}
+          slots={{ 'actions-left': '<button data-kqr-id="my-code">My QR code</button>' }}
+          onSlotPress={(slot, id) => { if (id === 'my-code') showMyCode(); }}
         />
       </Modal>
     </>
@@ -74,49 +99,83 @@ export function PayScreen() {
 }
 ```
 
+Mount the component to open the scanner and unmount it to close.
+
 ## Props
 
-Every prop of the web wrapper works the same way: `theme`, `locale`, `heading`, `labels`, `facing`, `continuous`, `success`, `torch`, `zoomControl`, `maxZoom`, `superResolution`, `formats`, `accept`, `noAutoZoom`, `noGallery`, `noTorch`, `noBeep`, `noVibrate` and `noClose`, plus these:
+These work exactly as on the web (see [API.md](API.md#scanqr)): `theme`, `locale`, `heading`, `labels`, `facing`, `continuous`, `success`, `torch`, `zoomControl`, `maxZoom`, `superResolution`, `formats`, `accept`, `noAutoZoom`, `noGallery`, `noTorch`, `noBeep`, `noVibrate` and `noClose`.
 
-| prop | type | |
-|---|---|---|
-| `onScan` / `onReject` / `onError` / `onClose` / `onReady` | callbacks | as on the web; `result.bytes` is a `Uint8Array` |
+Callbacks:
+
+| prop | called with | when |
+| :--- | :--- | :--- |
+| `onScan` | `ScanResult` | a code was read and accepted; `result.bytes` is a `Uint8Array` |
+| `onReject` | `ScanResult`, `message?` | `accept` turned a code down |
+| `onError` | `ScanError` | the camera could not start, e.g. `permission-denied` |
+| `onClose` | – | the user pressed ✕ |
+| `onReady` | – | the camera is running |
+| `onSlotPress` | `slot`, `id?` | something inside `slots` was tapped; `id` is the `data-kqr-id` of the tapped element |
+
+Only for React Native:
+
+| prop | type | description |
+| :--- | :--- | :--- |
 | `keepCamera` | `boolean` | keep the camera on after a result; call `resume()` to scan again |
-| `cssVars` | `Record<string, string>` | CSS variables for the scanner UI (`--kqr-accent`, …) |
-| `slots` | `Record<string, string>` | extra UI as **HTML strings**; React Native views cannot go inside a WebView |
-| `onSlotPress` | `(slot, id?) => void` | a tap inside `slots`; `id` is the tapped element's `data-kqr-id` |
-| `scriptUrl` | `string` | load `kqrcode.global.js` from a URL instead of the bundled copy |
-| `style` | `StyleProp<ViewStyle>` | style of the WebView; default `{ flex: 1, backgroundColor: '#000' }` |
-| `webViewProps` | `WebViewProps` | passed through to `react-native-webview` |
+| `cssVars` | `Record<string, string>` | [CSS variables](CUSTOMIZE.md#css-variables) for the scanner UI |
+| `slots` | `Record<string, string>` | extra UI as **HTML strings** by [slot name](CUSTOMIZE.md#slots); React Native views can't be placed inside a WebView |
+| `scriptUrl` | `string` | load the scanner from a URL instead of the bundled copy |
+| `style` | `StyleProp<ViewStyle>` | style of the scanner view; default `{ flex: 1, backgroundColor: '#000' }` |
+| `webViewProps` | `WebViewProps` | extra props for `react-native-webview` |
 
-Changing a prop other than a callback reloads the page and restarts the camera. Callbacks (`onScan`, `accept`, …) can change freely.
+Changing a callback is free. Changing any other prop reloads the scanner and restarts the camera, so keep them stable while the scanner is open.
 
-## Built in
+## Ref methods
 
-The defaults are tuned, so most apps need no `webViewProps`:
+| method | description |
+| :--- | :--- |
+| `resume()` | scan again after a result; reopens the camera if it was stopped |
+| `start()` / `stop()` | open or release the camera |
+| `close()` | stop the camera and fire `onClose` |
+| `toggleTorch(on?)` | switch the flashlight |
+| `pickImage()` | open the photo picker |
 
-- **Camera:** 1080p, raised to 4K where the phone needs digital zoom. Continuous autofocus, tap to focus, and hardware zoom and torch where the WebView exposes them.
-- **Background:** the camera is released while the app is in the background, so the privacy indicator turns off and other apps can use the camera. It reopens when the app comes back. If a result is showing, it waits for `resume()`.
-- **Recovery:** if the OS kills the WebView process under memory pressure, the scanner reloads instead of leaving a black screen.
-- **Surface:** full-bleed (the page lays itself out around the notch), no scrolling, bouncing, zoom gestures, link previews or text selection.
-- **Debugging:** in development builds, inspect the page from Safari (iOS) or `chrome://inspect` (Android).
+## What the component handles for you
 
-### Ref methods
+The defaults are tuned for scanning, so most apps never need `webViewProps`:
 
-`resume()` (reopens the camera if it was stopped), `start()`, `stop()`, `close()`, `toggleTorch(on?)`, `pickImage()`.
+- **Permissions.** On Android it requests the camera permission before showing the scanner. On iOS it skips the second, web-level prompt, so the user is asked only once.
+- **Camera quality.** The stream starts at 1080p and goes up to 4K where the phone has no hardware zoom. Continuous autofocus, tap to focus, and hardware zoom and flashlight wherever the WebView offers them.
+- **Background.** While the app is in the background, the camera is released, so the camera indicator turns off and other apps can use the camera. It reopens when the app returns, unless a result is showing; then `resume()` reopens it.
+- **Recovery.** If the system kills the WebView process to free memory, the scanner reloads instead of leaving a black screen.
+- **A native feel.** Full screen, laid out around the notch, with no scrolling, bouncing, zoom gestures, link previews or text selection.
+- **Debugging.** In development builds, inspect the scanner page with Safari (iOS) or `chrome://inspect` (Android).
 
-## Loading from a URL
+## Loading the scanner from a URL
 
 ```tsx
-<QRScanner scriptUrl="https://cdn.jsdelivr.net/npm/kqr-scanner@0.2.0/dist/kqrcode.global.js" … />
+<QRScanner scriptUrl="https://cdn.jsdelivr.net/npm/k-qr-scanner@0.2.0/dist/kqrcode.global.js" />
 ```
 
-`kqrcode.engine.js` must sit next to it, as it does on jsDelivr and unpkg. Pin the version. This needs network, and the bundled copy stays in your app either way.
+This loads that version instead of the bundled one, which is useful to try a fix without an app update. `kqrcode.engine.js` must be in the same directory (it is on jsDelivr and unpkg), the phone needs network access, and the bundled copy stays in your app either way. Always pin a version.
 
 ## Platform notes
 
-- **iOS 14.5+** (WKWebView camera support). There is no camera zoom API in WKWebView, so zoom is digital on a 4K stream, as in Safari. iOS 15+ skips the second, web-level camera prompt.
-- **Android 7+** with an up-to-date Android System WebView. Hardware zoom and the torch work where the device exposes them to the WebView.
-- The page is served from `https://kqrcode.local/`, which makes it a secure context so the camera is allowed. Nothing is fetched from that address.
-- `superResolution: 'webgpu'` downloads ONNX Runtime Web from a CDN. The default `'js'` works offline.
-- With iOS Lockdown Mode, WebAssembly is disabled. The scanner then falls back to jsQR, which reads plain QR codes only.
+| platform | notes |
+| :--- | :--- |
+| iOS 14.5+ | WKWebView has no camera zoom API, so zoom is digital, on a 4K stream as in Safari |
+| Android 7+ | needs an up-to-date Android System WebView; hardware zoom and the flashlight work where the device offers them |
+| Expo Go | works as is |
+
+- The scanner page has the address `https://kqrcode.local/`. A secure (`https`) address is what allows the camera; nothing is ever loaded from it.
+- `superResolution="webgpu"` downloads ONNX Runtime Web from a CDN. The default, `'js'`, works offline.
+- With iOS Lockdown Mode, WebAssembly is turned off. The scanner then falls back to jsQR, which reads regular QR codes only.
+
+## Troubleshooting
+
+| problem | fix |
+| :--- | :--- |
+| the iOS app closes when the scanner opens | `NSCameraUsageDescription` is missing: run `npx k-qr-scanner init --no-install`, or add `"plugins": ["k-qr-scanner"]` on Expo, then rebuild |
+| `onError` with `permission-denied` | the user said no. On Android the system won't ask again after a second "no", so link to the app settings with `Linking.openSettings()` |
+| "Unable to resolve module react-native-webview" | install it (`npx expo install react-native-webview` on Expo), then rebuild or restart Metro |
+| a black screen and nothing happens | check `onError`, and look at the page in Safari or `chrome://inspect` in a development build |
+| Expo: the permission doesn't apply | the plugin runs during prebuild, so run `npx expo prebuild` or a new EAS build after adding it |

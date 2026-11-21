@@ -19,7 +19,7 @@ const pick = (re: RegExp) => {
   return results[k];
 };
 const engines: [string, Record<string, { ok: boolean; ms: number }>][] = [
-  ['**kqrcode**', pick(/(kqrcode|kpay).*ONNX/)],
+  ['**k-qr-scanner**', pick(/(kqrcode|kpay).*ONNX/)],
   ['WeChat ¹', pick(/WeChat.*1 thr/)],
   ['ZXing-WASM', pick(/^ZXing/)],
   ['jsQR', pick(/^jsQR$/)],

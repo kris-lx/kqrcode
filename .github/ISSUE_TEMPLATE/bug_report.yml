@@ -12,7 +12,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: kqrcode version and framework
+      label: k-qr-scanner version and framework
       placeholder: 0.1.0, Next.js 15
     validations:
       required: true

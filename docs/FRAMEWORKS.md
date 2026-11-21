@@ -1,31 +1,61 @@
-# Using kqrcode in every framework
+# Frameworks
 
-> **Fastest way:** run `npx kqr-scanner init` in your project. It detects the framework, installs the package and creates a starter component based on the examples below.
+The quickest start in any project is:
 
-The scanner is a standard **custom element** (`<kqr-scanner>`), so it works anywhere the DOM works.
-Thin wrappers exist for React, Vue and Svelte. Importing any entry is SSR-safe (it registers the element only in the browser).
+```bash
+npx k-qr-scanner init
+```
 
-Common props / attributes:
+It detects the framework and writes a component like the ones below.
 
-| React / Vue / Svelte prop | HTML attribute | default |
-|---|---|---|
-| `locale` | `locale` | browser language → `en` / `lo` / `zh` |
+The scanner is a standard custom element, `<kqr-scanner>`, so it works anywhere the DOM does. React, Vue and Svelte get small wrappers on top of it, and React Native gets its own component. Every entry point can be imported during server-side rendering: the element only activates in the browser.
+
+- [React](#react)
+- [Next.js](#nextjs)
+- [Vue](#vue)
+- [Nuxt](#nuxt)
+- [Svelte and SvelteKit](#svelte-and-sveltekit)
+- [Angular](#angular)
+- [React Native and Expo](#react-native-and-expo)
+- [Plain HTML](#plain-html)
+- [Content-Security-Policy](#content-security-policy)
+
+## Names across frameworks
+
+Attributes become camelCase props in the wrappers:
+
+| `<kqr-scanner>` attribute | React / Vue / Svelte | default |
+| :--- | :--- | :--- |
+| `theme` | `theme` | `wechat` |
+| `locale` | `locale` | browser language |
+| `heading` | `heading` | – |
 | `facing` | `facing` | `environment` |
-| `continuous` | `continuous` | off (stop after first hit) |
-| `inline` | `inline` | off (full screen) |
-| `maxZoom` | `max-zoom` | 8 (hardware) / 4 (digital) |
-| `superResolution` | `super-resolution` | `js` (`webgpu`, `off`) |
-| `noAutoZoom`, `noGallery`, `noTorch`, `noBeep`, `noVibrate` | `no-auto-zoom`, … | off |
+| `continuous` | `continuous` | off: stop after the first code |
+| `inline` | `inline` | off: full screen |
+| `success`, `torch` | `success`, `torch` | `dot`, `auto` |
+| `zoom-control` | `zoomControl` | `none` |
+| `max-zoom` | `maxZoom` | `8` |
+| `super-resolution` | `superResolution` | `js` |
+| `formats` | `formats` (an array) | all |
+| `no-auto-zoom`, `no-gallery`, `no-torch`, `no-beep`, `no-vibrate`, `no-close` | `noAutoZoom`, `noGallery`, `noTorch`, `noBeep`, `noVibrate`, `noClose` | off |
+| property `accept` | `accept` | – |
+| property `labels` | `labels` | – |
 
-Events: `scan` (`detail: ScanResult`), `error` (`detail: ScanError`), `close`, `ready`, `zoom`.
+| element event | React / Svelte | Vue |
+| :--- | :--- | :--- |
+| `scan` | `onScan(result)` | `@scan` |
+| `reject` | `onReject(result, message?)` | `@reject` |
+| `error` | `onError(error)` | `@error` |
+| `close` | `onClose()` | `@close` |
+| `ready` | `onReady()` | `@ready` |
 
----
+Svelte has no `noClose`; use the `<kqr-scanner>` tag with `no-close` instead. Every option is described in [API.md](API.md).
 
-## React (Vite / CRA)
+## React
 
 ```tsx
 import { useState } from 'react';
-import { QRScanner } from 'kqr-scanner/react';
+import { QRScanner } from 'k-qr-scanner/react';
 
 export function PayButton() {
   const [open, setOpen] = useState(false);
@@ -35,55 +65,74 @@ export function PayButton() {
       {open && (
         <QRScanner
           locale="lo"
-          superResolution="webgpu"
+          style={{ '--kqr-accent': '#e60012' }}
           onScan={(r) => { setOpen(false); pay(r.text); }}
           onClose={() => setOpen(false)}
-        />
+          onError={(e) => console.warn(e.code)}
+        >
+          <button slot="actions-left" onClick={showMyCode}>My QR code</button>
+        </QRScanner>
       )}
     </>
   );
 }
 ```
 
-## Next.js (App Router)
+Mount the component to open the scanner and unmount it to close. Children with `slot="…"` go into the scanner UI ([slots](CUSTOMIZE.md#slots)). Callbacks always see your latest props, so they can use the current state.
 
-The React entry ships with `'use client'`, so you can render it from a server component file, or lazy-load it so the
-~460 kB engine is only downloaded on the scan page:
+## Next.js
+
+The React wrapper ships with `'use client'`, so you can use it straight from a server component file. To download the engine only on the page that scans, load it lazily:
 
 ```tsx
 // app/scan/page.tsx
 import dynamic from 'next/dynamic';
-const QRScanner = dynamic(() => import('kqr-scanner/react').then((m) => m.QRScanner), { ssr: false });
+
+const QRScanner = dynamic(() => import('k-qr-scanner/react').then((m) => m.QRScanner), { ssr: false });
 
 export default function Page() {
   return <QRScanner locale="lo" onScan={(r) => console.log(r.text)} />;
 }
 ```
 
-## Vue 3 (Vite)
+## Vue
 
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue';
-import { QRScanner } from 'kqr-scanner/vue';
+import { QRScanner } from 'k-qr-scanner/vue';
+import type { ScanResult } from 'k-qr-scanner';
+
 const open = ref(false);
+function onScan(r: ScanResult) {
+  open.value = false;
+  pay(r.text);
+}
 </script>
 
 <template>
   <button @click="open = true">Scan</button>
-  <QRScanner v-if="open" locale="lo" @scan="(r) => { open = false; pay(r.text) }" @close="open = false" />
+  <QRScanner v-if="open" theme="alipay" locale="zh" @scan="onScan" @close="open = false">
+    <nav slot="footer"><b>扫码</b><span>识物</span><span>AR</span></nav>
+  </QRScanner>
 </template>
 ```
 
-If you use the raw tag `<kqr-scanner>` in Vue templates instead of the wrapper, tell Vue it is a custom element:
-`vue({ template: { compilerOptions: { isCustomElement: (t) => t === 'kqr-scanner' } } })`.
+If you use the raw `<kqr-scanner>` tag in Vue templates instead of the wrapper, tell Vue it is a custom element:
 
-## Nuxt 3
+```ts
+// vite.config.ts
+vue({ template: { compilerOptions: { isCustomElement: (tag) => tag === 'kqr-scanner' } } });
+```
+
+## Nuxt
+
+Render the scanner on the client only, with `<ClientOnly>` or a `*.client.vue` component:
 
 ```vue
 <!-- pages/scan.vue -->
 <script setup lang="ts">
-import { QRScanner } from 'kqr-scanner/vue';
+import { QRScanner } from 'k-qr-scanner/vue';
 </script>
 
 <template>
@@ -93,98 +142,100 @@ import { QRScanner } from 'kqr-scanner/vue';
 </template>
 ```
 
-## Svelte 5 / SvelteKit
+## Svelte and SvelteKit
+
+The Svelte entry is an action. Actions only run in the browser, so it is safe in SvelteKit without `browser` checks.
 
 ```svelte
 <script lang="ts">
-  import { qrScanner } from 'kqr-scanner/svelte';
+  import { qrScanner } from 'k-qr-scanner/svelte';
   let open = $state(false);
 </script>
 
 <button onclick={() => (open = true)}>Scan</button>
+
 {#if open}
-  <div use:qrScanner={{ locale: 'lo', onScan: (r) => { open = false; pay(r.text); }, onClose: () => (open = false) }}></div>
+  <div use:qrScanner={{ locale: 'lo', onScan: (r) => { open = false; pay(r.text); }, onClose: () => (open = false) }}>
+    <button data-slot="actions-left">My QR code</button>
+  </div>
 {/if}
 ```
 
-Actions only run in the browser, so this is SSR-safe in SvelteKit without `browser` checks.
-
-Slots: Svelte 5 rejects `slot="…"` inside a plain `<div>`, so inside the action use **`data-slot="…"`**:
+Svelte 5 only allows `slot="…"` inside custom elements, so children of the action use `data-slot="…"`. You can also use the element directly, where `slot` works and events are `on…` attributes:
 
 ```svelte
-<div use:qrScanner={{ theme: 'alipay', onScan }}>
-  <button data-slot="actions-left">My QR</button>
-</div>
-```
+<script>
+  import 'k-qr-scanner';
+</script>
 
-Or use the custom element tag directly, where `slot` is valid and events are `on<name>` attributes:
-
-```svelte
-<script>import 'kqr-scanner';</script>
 <kqr-scanner theme="alipay" locale="lo" onscan={(e) => pay(e.detail.text)}>
-  <button slot="actions-left">My QR</button>
+  <button slot="actions-left">My QR code</button>
 </kqr-scanner>
 ```
 
-## Angular (17+ standalone)
+## Angular
+
+Import the package once to register the element, and allow custom elements in the component:
 
 ```ts
-// scan.component.ts
 import { Component, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
-import 'kqr-scanner'; // registers <kqr-scanner>
-import type { ScanResult } from 'kqr-scanner';
+import 'k-qr-scanner';
+import type { ScanResult } from 'k-qr-scanner';
 
 @Component({
   selector: 'app-scan',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   template: `
+    <button (click)="open = true">Scan</button>
     @if (open) {
-      <kqr-scanner locale="lo" super-resolution="webgpu"
-        (scan)="onScan($any($event).detail)" (close)="open = false"></kqr-scanner>
+      <kqr-scanner locale="lo" (scan)="onScan($any($event).detail)" (close)="open = false"></kqr-scanner>
     }
-    <button (click)="open = true">Scan</button>`,
+  `,
 })
 export class ScanComponent {
   open = false;
-  onScan(r: ScanResult) { this.open = false; console.log(r.text); }
+  onScan(r: ScanResult) {
+    this.open = false;
+    console.log(r.text);
+  }
 }
 ```
 
-With Angular SSR the import is safe on the server; the element only activates in the browser.
+The import is safe with Angular SSR; the element only activates in the browser. To set `accept` or `labels`, get the element with a template reference and `ViewChild`, then assign the property.
 
-## React Native / Expo
+## React Native and Expo
 
 ```tsx
-import { QRScanner } from 'kqr-scanner/react-native'; // npx kqr-scanner init: installs, adds camera permissions
+import { QRScanner } from 'k-qr-scanner/react-native';
 
 <QRScanner style={{ flex: 1 }} locale="lo" onScan={(r) => pay(r.text)} onClose={() => setOpen(false)} />
 ```
 
-Expo: `"plugins": ["kqr-scanner"]` adds the camera permissions. Props and platform notes: [REACT_NATIVE.md](REACT_NATIVE.md).
+It needs `react-native-webview` and the camera permissions; `npx k-qr-scanner init` sets up both. Everything else is in [REACT_NATIVE.md](REACT_NATIVE.md).
 
-## Plain HTML / CDN
+## Plain HTML
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/kqr-scanner/dist/kqrcode.global.js"></script>
-<kqr-scanner locale="lo"></kqr-scanner>
+<script src="https://cdn.jsdelivr.net/npm/k-qr-scanner/dist/kqrcode.global.js"></script>
+
+<button id="scan">Scan</button>
 <script>
-  document.querySelector('kqr-scanner').addEventListener('scan', (e) => alert(e.detail.text));
+  document.getElementById('scan').onclick = async () => {
+    const { text } = await KQRCode.scanQR({ locale: 'lo' });
+    alert(text);
+  };
 </script>
 ```
 
-## Headless (bring your own UI)
-
-```ts
-import { QRScanner } from 'kqr-scanner';
-const scanner = new QRScanner({ video: document.querySelector('video')!, superResolution: 'webgpu' });
-scanner.on('result', (r) => console.log(r.text));
-scanner.on('hint', ({ hint }) => drawBox(hint)); // where a (still unreadable) code is
-await scanner.start();
-```
+The script build (17 kB gzip) defines the global `KQRCode` and registers `<kqr-scanner>`. It loads the engine from `kqrcode.engine.js` in the same directory when the scanner first opens. Pin a version in production, e.g. `k-qr-scanner@0.2.0`, or self-host `kqrcode.global.js`, `kqrcode.engine.js` and `kqrcode.jsqr.js` together.
 
 ## Content-Security-Policy
 
-The worker is created from a `blob:` URL and runs WASM. Allow: `worker-src blob:` and `script-src 'wasm-unsafe-eval'`.
-For `superResolution: 'webgpu'`, also allow the ONNX Runtime CDN in `script-src`/`connect-src` (or self-host it and set
-`onnx-runtime-url`). If blob workers are blocked, the scanner falls back to jsQR on the main thread (slower, no SR).
+The engine runs WebAssembly in a worker created from a `blob:` URL, so a CSP needs:
+
+```
+worker-src blob:; script-src 'self' 'wasm-unsafe-eval'
+```
+
+With `superResolution: 'webgpu'`, also allow the ONNX Runtime CDN in `script-src` and `connect-src`, or self-host it and set `onnx-runtime-url`. If workers or WebAssembly are blocked, the scanner falls back to jsQR on the main thread: it still works, but slower, without super-resolution, and for regular QR codes only. `npx k-qr-scanner doctor` finds a CSP in your HTML and checks it.

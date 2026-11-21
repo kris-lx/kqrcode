@@ -1,8 +1,8 @@
 /**
- * Expo config plugin for kqr-scanner/react-native. Adds the camera permission entries on prebuild / EAS:
+ * Expo config plugin for k-qr-scanner/react-native. Adds the camera permission entries on prebuild / EAS:
  *
- *   "plugins": ["kqr-scanner"]
- *   "plugins": [["kqr-scanner", { "cameraPermission": "Scan QR codes to pay" }]]
+ *   "plugins": ["k-qr-scanner"]
+ *   "plugins": [["k-qr-scanner", { "cameraPermission": "Scan QR codes to pay" }]]
  *
  * iOS: NSCameraUsageDescription (an existing text is kept unless you pass cameraPermission).
  * Android: android.permission.CAMERA. Expo Go needs nothing: it already has both.

@@ -1,14 +1,14 @@
 /**
- * kqr-scanner/react-native – the kqrcode scanner for React Native (iOS + Android, Expo included).
+ * k-qr-scanner/react-native – the kqrcode scanner for React Native (iOS + Android, Expo included).
  *
- *   import { QRScanner } from 'kqr-scanner/react-native';
+ *   import { QRScanner } from 'k-qr-scanner/react-native';
  *   <QRScanner style={{ flex: 1 }} locale="lo" onScan={(r) => pay(r.text)} onClose={() => setOpen(false)} />
  *
  * React Native has no DOM, camera API or WebAssembly in JavaScript, so the scanner runs in a
  * react-native-webview: the same engine, UI, themes, auto-zoom and QR formats as on the web. The
  * engine is bundled with the component, so it works offline. Needs `react-native-webview` ≥ 13,
- * iOS 14.5+ / Android 7+, and the camera permission entry (Expo: add the "kqr-scanner" config plugin;
- * bare apps: `npx kqr-scanner init` writes it). The component asks for the Android runtime permission
+ * iOS 14.5+ / Android 7+, and the camera permission entry (Expo: add the "k-qr-scanner" config plugin;
+ * bare apps: `npx k-qr-scanner init` writes it). The component asks for the Android runtime permission
  * itself, releases the camera while the app is in the background and recovers if the WebView
  * process is killed.
  */

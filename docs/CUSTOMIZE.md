@@ -1,120 +1,150 @@
-# Customising the scanner
+# Customizing the scanner
 
-Use the lightest layer that does what you need. Each layer keeps the layers below it working.
+There are several layers of customization, from a single attribute to a UI you build yourself. Start with the lightest one that does what you need; each layer works together with the ones before it.
 
-## 0. One line
+| you want to | use |
+| :--- | :--- |
+| pick a look | [a theme](#themes) |
+| change colors, sizes and fonts | [CSS variables](#css-variables) |
+| restyle one built-in piece | [`::part()`](#parts) |
+| add your own buttons, tabs or screens | [slots](#slots) |
+| change the text or language | [languages and labels](#languages-and-labels) |
+| build a completely different UI | [headless mode](#headless-mode) |
 
-```ts
-import { scanQR } from 'kqr-scanner';
+The examples use the `<kqr-scanner>` element. The same attributes work as props in the React, Vue and Svelte wrappers (in camelCase: `zoom-control` becomes `zoomControl`) and as options of `scanQR()`.
 
-const { text } = await scanQR({ theme: 'alipay', locale: 'lo', heading: 'ສະແກນຈ່າຍ' });
-```
-
-`scanQR` opens the full-screen scanner, resolves with the first code and removes itself afterwards. It rejects with a `ScanError` for camera problems, or with a `DOMException('AbortError')` when the user closes it or your `signal` aborts.
-
-To skip the engine download delay, call `QRScanner.preload()` early, e.g. when the "Scan" button is hovered or shown. The engine is ~640 KB gzip.
-
-## 1. Themes
+## Themes
 
 | `theme` | look | default accent |
-|---|---|---|
-| `wechat` (default) | thin glowing line sweeps the whole screen, no frame | `#07c160` |
-| `alipay` | gradient band with a bright edge sweeps the whole screen | `#1677ff` |
-| `grid` | corner brackets with a grid mesh sweeping inside, no dimming | `#1fd17a` |
-| `frame` | classic dimmed mask, frame and line | `#1fd17a` |
-| `none` | camera only; draw your own UI | – |
+| :--- | :--- | :--- |
+| `wechat` (default) | a thin glowing line sweeps the whole screen, with no frame | `#07c160` |
+| `alipay` | a gradient band with a bright edge sweeps the whole screen | `#1677ff` |
+| `grid` | corner brackets with a grid sweeping inside, no dimming | `#1fd17a` |
+| `frame` | a dimmed mask around a frame with a scan line | `#1fd17a` |
+| `none` | the camera only; you draw the UI | – |
 
-Scanning always covers the **whole camera image**. The frame is decoration only, as in WeChat and Alipay.
+The frame is decoration only. The scanner always reads the **whole camera image**, as WeChat and Alipay do.
 
-Other look options:
+More options that change the look:
 
-- `success="dot|box|none"`: the "found it" marker. `dot` is the WeChat/Alipay check mark, and the frame freezes when the code is found.
-- `torch="auto|always|never"`: `auto` shows the light button only when it is dark, like WeChat's "轻触照亮".
-- `zoom-control="none|slider"`: `none` is the default. Pinch, double-tap and auto-zoom still work.
-- `heading="…"`: text in the top bar.
-- `no-close`, `no-gallery`, `no-beep`, `no-vibrate`, `no-candidates` (hides the brackets drawn around a code that is not yet readable).
+| attribute | values | description |
+| :--- | :--- | :--- |
+| `success` | `dot` (default) · `box` · `none` | marker on the found code. `dot` is the WeChat/Alipay check mark, shown on a frozen frame |
+| `torch` | `auto` (default) · `always` · `never` | flashlight button; `auto` shows it only when the scene gets dark |
+| `zoom-control` | `none` (default) · `slider` | a zoom slider; pinch, double-tap and auto-zoom always work |
+| `heading` | text | title in the top bar |
+| `no-close` · `no-gallery` · `no-torch` · `no-beep` · `no-vibrate` | flags | hide a button or turn off feedback |
+| `no-candidates` | flag | hide the brackets drawn around a code that can't be read yet |
 
-## 2. CSS variables
+## CSS variables
 
-Set them on the element or on any ancestor:
+Set them on the element or on any parent element:
 
 ```css
 kqr-scanner {
-  --kqr-accent: #e60012;          /* line / corners */
-  --kqr-success: #00b578;         /* check mark */
-  --kqr-scan-duration: 1.8s;
+  --kqr-accent: #e60012;                 /* scan line and corners */
+  --kqr-success: #00b578;                /* check mark */
+  --kqr-scan-duration: 1.8s;             /* one sweep of the scan line */
   --kqr-line-width: 4px;
-  --kqr-frame-size: 260px;  --kqr-frame-top: 40%;  --kqr-frame-radius: 20px;
-  --kqr-corner-size: 30px;  --kqr-corner-width: 5px;
-  --kqr-mask: rgba(0,0,0,.6);     /* frame theme */
-  --kqr-button-bg: rgba(255,255,255,.18);  --kqr-button-size: 56px;
-  --kqr-text: #fff;  --kqr-font: "Noto Sans Lao", sans-serif;  --kqr-bg: #000;
+  --kqr-frame-size: 260px;               /* frame and grid themes */
+  --kqr-frame-top: 40%;
+  --kqr-frame-radius: 20px;
+  --kqr-corner-size: 30px;
+  --kqr-corner-width: 5px;
+  --kqr-mask: rgba(0, 0, 0, .6);         /* frame theme */
+  --kqr-button-bg: rgba(255, 255, 255, .18);
+  --kqr-button-size: 56px;
+  --kqr-text: #fff;
+  --kqr-font: "Noto Sans Lao", sans-serif;
+  --kqr-bg: #000;                        /* behind the video */
 }
 ```
 
-The full list is exported as `THEME_VARS`.
+`scanQR()` takes them as `style: { '--kqr-accent': '#e60012' }`, and the React wrapper as its `style` prop. The full list is exported as `THEME_VARS`.
 
-## 3. `::part()`: restyle a built-in piece
+## Parts
 
-Parts: `stage` `video` `candidates` `effect` `scanline` `frame` `success` `focus-ring` `top` `title` `close` `bottom` `hint` `torch` `zoom` `actions` `gallery` `error`.
+Every built-in piece of the UI is exposed as a CSS part, so you can restyle it from outside:
+
+`stage` · `video` · `candidates` · `effect` · `scanline` · `frame` · `success` · `focus-ring` · `top` · `title` · `close` · `bottom` · `hint` · `torch` · `zoom` · `actions` · `gallery` · `error`
 
 ```css
-kqr-scanner::part(hint)    { font-size: 16px; background: #0006; padding: 6px 14px; border-radius: 20px; }
-kqr-scanner::part(scanline){ filter: drop-shadow(0 0 8px #fff); }
-kqr-scanner::part(close)   { display: none; }
+kqr-scanner::part(hint)     { font-size: 16px; background: #0006; padding: 6px 14px; border-radius: 20px; }
+kqr-scanner::part(scanline) { filter: drop-shadow(0 0 8px #fff); }
+kqr-scanner::part(close)    { display: none; }
 ```
 
-## 4. Slots: your own buttons, tabs, hint and error
+## Slots
 
-| slot | default content | example |
-|---|---|---|
-| `top-left` | ✕ close button | back arrow |
-| `top-center` | `heading` text | logo |
-| `top-right` | – | "…" menu |
-| `hint` | status text | your own animated hint |
-| `actions-left` | – | "My QR code" pill (WeChat) / "Receive & pay" (Alipay) |
-| `actions-right` | album button | your own album button |
-| `footer` | – | tabs: Scan · Identify · AR |
-| `error` | error text | branded permission screen |
+Put your own elements into the scanner UI with the `slot` attribute:
+
+| slot | replaces | ideas |
+| :--- | :--- | :--- |
+| `top-left` | the ✕ close button | a back arrow |
+| `top-center` | the heading | your logo |
+| `top-right` | – | a "…" menu |
+| `hint` | the status text | your own animated hint |
+| `actions-left` | – | a "My QR code" button (WeChat) or "Receive money" (Alipay) |
+| `actions-right` | the album button | your own album button |
+| `footer` | – | tabs such as Scan · Translate · AR |
+| `error` | the error text | a branded camera-permission screen |
 
 ```html
 <kqr-scanner theme="alipay" locale="zh">
   <button slot="actions-left" onclick="openMyCode()">我的二维码</button>
+  <button slot="actions-right" onclick="this.closest('kqr-scanner').pickImage()">相册</button>
   <nav slot="footer"><b>扫码</b><span>识物</span><span>AR</span></nav>
 </kqr-scanner>
 ```
 
-Your slotted buttons can call the element's methods: `el.pickImage()`, `el.toggleTorch()`, `el.close()`, `el.resume()`.
+Your buttons can call the element's methods: `pickImage()`, `toggleTorch()`, `close()` and `resume()`.
 
-The React, Vue and Svelte wrappers pass slotted children straight through, e.g. `<QRScanner><button slot="actions-left">…</button></QRScanner>`.
+In the wrappers:
 
-## 5. Text and languages
+- **React and Vue** pass children through as they are: `<QRScanner><button slot="actions-left">…</button></QRScanner>`.
+- **Svelte** uses `data-slot="…"` instead of `slot`, because Svelte 5 only allows `slot` inside custom elements.
+- **React Native** takes slots as HTML strings; see [REACT_NATIVE.md](REACT_NATIVE.md#props).
 
-`locale="lo|en|zh"`, plus a `labels` property to override any string:
+## Languages and labels
+
+English (`en`), Lao (`lo`) and Chinese (`zh`) are built in. Without a `locale` attribute, the browser language is used, falling back to English.
+
+Replace any text with the `labels` property (the `labels` prop or option in the wrappers and `scanQR()`):
 
 ```ts
 el.labels = { hint: 'ສະແກນເພື່ອຈ່າຍ', torchOn: 'ເປີດໄຟ' };
 ```
 
-## 6. Headless: your own UI from scratch
+| label | shown |
+| :--- | :--- |
+| `hint` | while scanning |
+| `zooming` | while auto-zoom moves in on a code |
+| `dark` | when the scene is too dark |
+| `torchOn` / `torchOff` | on the flashlight button |
+| `gallery` | on the album button |
+| `noQrInImage` | when a picked photo has no code |
+| `close` | label of the ✕ button |
+| `permission` | camera permission denied |
+| `noCamera` | no camera found |
+| `busy` | the camera is used by another app |
+| `insecure` | the page is not served over HTTPS |
+| `unsupported` | the browser can't open a camera |
+
+For another language, pass all labels in that language; any label you leave out is shown in English. The built-in texts are exported as `LABELS`.
+
+## Headless mode
+
+For a completely different interface, use the `QRScanner` class with your own `<video>` element. It does the camera, auto-zoom and decoding, and reports what it sees through events:
 
 ```ts
-import { QRScanner } from 'kqr-scanner';
-const s = new QRScanner({ video, superResolution: 'webgpu' });
-s.on('hint', ({ hint }) => draw(hint));     // a code is visible but not yet readable
-s.on('zoom', (z) => showZoom(z.zoom));
-s.on('dark', (dark) => showTorch(dark));
-s.on('result', (r) => done(r.text));
-await s.start();
+import { QRScanner } from 'k-qr-scanner';
+
+const scanner = new QRScanner({ video, superResolution: 'webgpu' });
+scanner.on('hint', ({ hint }) => drawBox(hint));      // a code is in view but can't be read yet
+scanner.on('zoom', ({ zoom }) => showZoom(zoom));
+scanner.on('dark', (dark) => showTorchButton(dark));
+scanner.on('result', (r) => done(r.text));
+await scanner.start();
 ```
 
-## Size
-
-| what loads | when | size (gzip) |
-|---|---|---|
-| UI and scanner logic | on import | ~14 KB |
-| decoding engine (ZXing WASM, detectors, SR) | first `start()` or `QRScanner.preload()` | ~460 KB, then cached; one warm worker is shared by all scanners |
-| jsQR fallback | only if blob workers are blocked by CSP | ~47 KB |
-| ONNX Runtime Web | only with `superResolution: 'webgpu'` | from CDN or your own host |
-
-With ESM bundlers (Vite, webpack, Next, Nuxt, SvelteKit, Angular) the engine becomes a separate chunk automatically. The CJS and `<script>` builds bundle everything inline.
+All options and events: [API.md](API.md#qrscanner-headless).
